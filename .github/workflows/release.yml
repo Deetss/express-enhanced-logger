@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build
+      run: npm run build
+    
+    - name: Run tests
+      run: npm test
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        registry-url: 'https://registry.npmjs.org'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build
+      run: npm run build
+    
+    - name: Check if version changed
+      id: check
+      run: |
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        
+        # Get the current version from package.json
+        CURRENT_VERSION=$(node -p "require('./package.json').version")
+        
+        # Check if this version exists as a git tag
+        if git rev-parse "v$CURRENT_VERSION" >/dev/null 2>&1; then
+          echo "Version v$CURRENT_VERSION already exists, skipping release"
+          echo "should_release=false" >> $GITHUB_OUTPUT
+        else
+          echo "New version v$CURRENT_VERSION detected"
+          echo "should_release=true" >> $GITHUB_OUTPUT
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Create Release
+      if: steps.check.outputs.should_release == 'true'
+      run: |
+        # Create git tag
+        git tag "v${{ steps.check.outputs.version }}"
+        git push origin "v${{ steps.check.outputs.version }}"
+    
+    - name: Publish to npm
+      if: steps.check.outputs.should_release == 'true'
+      run: npm publish
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    
+    - name: Create GitHub Release
+      if: steps.check.outputs.should_release == 'true'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.check.outputs.version }}
+        release_name: Release v${{ steps.check.outputs.version }}
+        body: |
+          ## Changes in v${{ steps.check.outputs.version }}
+          
+          See [CHANGELOG.md](https://github.com/dylandietz/express-enhanced-logger/blob/main/CHANGELOG.md) for details.
+          
+          ## Installation
+          
+          ```bash
+          npm install express-enhanced-logger@${{ steps.check.outputs.version }}
+          ```
+        draft: false
+        prerelease: false
