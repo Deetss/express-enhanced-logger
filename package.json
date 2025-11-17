@@ -1,6 +1,6 @@
 {
   "name": "express-enhanced-logger",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "An enhanced Express.js logger with performance monitoring, SQL query formatting, and customizable features",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -109,11 +109,16 @@
       "^(\\.{1,2}/.*)\\.js$": "$1"
     },
     "transform": {
-      "^.+\\.ts$": ["ts-jest", {
-        "useESM": true
-      }]
+      "^.+\\.ts$": [
+        "ts-jest",
+        {
+          "useESM": true
+        }
+      ]
     },
-    "extensionsToTreatAsEsm": [".ts"],
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
     "transformIgnorePatterns": [
       "node_modules/(?!(chalk)/)"
     ]
