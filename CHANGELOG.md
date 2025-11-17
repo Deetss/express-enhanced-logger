@@ -1,3 +1,15 @@
+# [2.2.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.1.0...v2.2.0) (2025-11-17)
+
+
+### Bug Fixes
+
+* update release configuration to include NPM_TOKEN and streamline npm plugin setup ([273f95f](https://github.com/Deetss/express-enhanced-logger/commit/273f95fcf965d99b949013773c911454c59c3ebc))
+
+
+### Features
+
+* update release workflow to use semantic-release for versioning and changelog generation ([315fc71](https://github.com/Deetss/express-enhanced-logger/commit/315fc71b75896991048dcc2da344bb57861fe48d))
+
 # [2.1.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.0.0...v2.1.0) (2025-11-17)
 
 ### Features
