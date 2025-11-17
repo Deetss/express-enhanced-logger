@@ -1,5 +1,13 @@
 import { Request, Response } from 'express';
 
+// Winston log info interface
+export interface WinstonLogInfo {
+  level: string;
+  message: any;
+  timestamp: string;
+  [key: string]: any;
+}
+
 export interface LoggerConfig {
   /** Log level (default: 'info') */
   level?: 'error' | 'warn' | 'info' | 'debug' | 'query';
@@ -56,7 +64,7 @@ export interface LoggerConfig {
   getRequestId?: (req: Request) => string | undefined;
   
   /** Custom log format function */
-  customLogFormat?: (info: any) => string;
+  customLogFormat?: (info: WinstonLogInfo) => string;
   
   /** Additional metadata to include in logs */
   additionalMetadata?: (req: Request, res: Response) => Record<string, unknown>;

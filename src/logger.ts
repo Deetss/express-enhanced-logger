@@ -7,13 +7,23 @@ import { NextFunction, Request, Response } from 'express';
 import { mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 
-import { LoggerConfig, RequestLogData, QueryLogData } from './types.js';
-import { DEFAULT_CONFIG, createTruncateForLog, getDurationColor, formatLogMessage, removeUndefinedDeep } from './utils.js';
+import { LoggerConfig, RequestLogData, QueryLogData, WinstonLogInfo } from './types.js';
+import { 
+  DEFAULT_CONFIG, 
+  createTruncateForLog, 
+  getDurationColor, 
+  getStatusColor,
+  getLevelColor,
+  getMethodColor,
+  formatLogMessage, 
+  removeUndefinedDeep,
+  LEVEL_EMOJIS
+} from './utils.js';
 import { createSqlFormatter } from './sqlFormatter.js';
 
 export class EnhancedLogger {
   private logger: winston.Logger;
-  private config: Required<Omit<LoggerConfig, 'customLogFormat'>> & { customLogFormat?: (info: any) => string };
+  private config: Required<Omit<LoggerConfig, 'customLogFormat'>> & { customLogFormat?: (info: WinstonLogInfo) => string };
   private truncateForLog: (value: unknown, depth?: number) => unknown;
   private formatSqlQuery: (query: string, params: string) => string;
 
@@ -36,7 +46,7 @@ export class EnhancedLogger {
 
   private createLogger(): winston.Logger {
     const customFormat = this.config.customLogFormat 
-      ? format.printf(this.config.customLogFormat)
+      ? format.printf((info) => this.config.customLogFormat!(info as unknown as WinstonLogInfo))
       : this.createDefaultFormat();
 
     const transports: winston.transport[] = [];
@@ -97,39 +107,15 @@ export class EnhancedLogger {
       format.printf((info: winston.Logform.TransformableInfo) => {
         // Simple logging mode - just return the message
         if (this.config.simpleLogging) {
-          const { message } = info as { message: any };
+          const logInfo = info as unknown as WinstonLogInfo;
+          const { message } = logInfo;
           return typeof message === 'object' 
             ? inspect(message, { colors: this.config.enableColors, depth: 5 })
             : String(message);
         }
-        const { level, message, timestamp, ...meta } = info as {
-          level: string;
-          message: any;
-          timestamp: string;
-        };
+        const { level, message, timestamp, ...meta } = info as unknown as WinstonLogInfo;
 
-        const levelColors = this.config.enableColors ? {
-          error: chalk.red,
-          warn: chalk.yellow,
-          info: chalk.blue,
-          debug: chalk.gray,
-          query: chalk.cyan
-        } : {
-          error: (text: string) => text,
-          warn: (text: string) => text,
-          info: (text: string) => text,
-          debug: (text: string) => text,
-          query: (text: string) => text
-        };
-
-        const levelEmoji = {
-          error: '❌',
-          warn: '⚠️ ',
-          info: 'ℹ️ ',
-          debug: '🔍',
-          query: '🛢️ '
-        }[level] || '📝';
-
+        const levelEmoji = LEVEL_EMOJIS[level as keyof typeof LEVEL_EMOJIS] || '📝';
         const duration = message?.duration || '0';
         const durationColor = getDurationColor(duration, this.config.enableColors);
 
@@ -137,30 +123,8 @@ export class EnhancedLogger {
         if (typeof message === 'object' && message.method) {
           const { method, url, status, statusText } = message;
 
-          const methodColors = this.config.enableColors ? {
-            GET: chalk.green(method.padEnd(6)),
-            POST: chalk.yellow(method.padEnd(6)),
-            PUT: chalk.blue(method.padEnd(6)),
-            DELETE: chalk.red(method.padEnd(6)),
-            PATCH: chalk.magenta(method.padEnd(6))
-          } : {
-            GET: method.padEnd(6),
-            POST: method.padEnd(6),
-            PUT: method.padEnd(6),
-            DELETE: method.padEnd(6),
-            PATCH: method.padEnd(6)
-          };
-
-          const coloredMethod = methodColors[method as keyof typeof methodColors] || 
-            (this.config.enableColors ? chalk.white(method.padEnd(6)) : method.padEnd(6));
-
-          const statusColor = this.config.enableColors ? (
-            status >= 500 ? chalk.red :
-            status >= 400 ? chalk.yellow :
-            status >= 300 ? chalk.cyan :
-            status >= 200 ? chalk.green :
-            chalk.blue
-          ) : (text: string) => text;
+          const coloredMethod = getMethodColor(method, this.config.enableColors);
+          const statusColor = getStatusColor(status, this.config.enableColors);
 
           return formatLogMessage({
             timestamp,
@@ -219,7 +183,7 @@ export class EnhancedLogger {
         }
 
         // Handle regular logs
-        const colorFn = levelColors[level as keyof typeof levelColors];
+        const colorFn = getLevelColor(level, this.config.enableColors);
         return `${timestamp} ${levelEmoji} ${colorFn(level)}: ${
           typeof message === 'object'
             ? inspect(message, { colors: this.config.enableColors, depth: 5 })
@@ -234,20 +198,20 @@ export class EnhancedLogger {
   }
 
   // Public logging methods
-  error(message: any, meta?: any) {
-    this.logger.error(message, meta);
+  error(message: string | Record<string, unknown>, meta?: Record<string, unknown>) {
+    this.logger.error(message as string, meta);
   }
 
-  warn(message: any, meta?: any) {
-    this.logger.warn(message, meta);
+  warn(message: string | Record<string, unknown>, meta?: Record<string, unknown>) {
+    this.logger.warn(message as string, meta);
   }
 
-  info(message: any, meta?: any) {
-    this.logger.info(message, meta);
+  info(message: string | Record<string, unknown>, meta?: Record<string, unknown>) {
+    this.logger.info(message as string, meta);
   }
 
-  debug(message: any, meta?: any) {
-    this.logger.debug(message, meta);
+  debug(message: string | Record<string, unknown>, meta?: Record<string, unknown>) {
+    this.logger.debug(message as string, meta);
   }
 
   query(data: QueryLogData) {
@@ -261,41 +225,55 @@ export class EnhancedLogger {
     const start = performance.now();
     const startMemory = process.memoryUsage().heapUsed;
 
-    // Extract user and request ID using configured functions
-    const user = this.config.getUserFromRequest(req);
-    const requestId = this.config.getRequestId(req);
+    // Extract user and request ID using configured functions with null safety
+    const user = this.config.getUserFromRequest ? this.config.getUserFromRequest(req) : undefined;
+    const requestId = this.config.getRequestId ? this.config.getRequestId(req) : undefined;
 
-    // Preserve request context
+    // Preserve request context with safe property access
     const reqContext = {
-      ip: req?.ip,
-      userAgent: req?.get('User-Agent'),
-      referer: req?.get('Referer'),
+      ip: req?.ip || 'unknown',
+      userAgent: req?.get?.('User-Agent') || undefined,
+      referer: req?.get?.('Referer') || undefined,
       correlationId: requestId
     };
-    
-    res.on('finish', () => {
+
+    // Handler for logging errors
+    const errorHandler = (error: Error) => {
+      this.logger.error({
+        requestId,
+        error: error.message,
+        stack: error.stack,
+        context: reqContext
+      });
+    };
+
+    // Handler for logging after response finishes
+    const finishHandler = () => {
+      // Clean up error listener
+      res.off('error', errorHandler);
+
       const duration = performance.now() - start;
       const memoryUsed = process.memoryUsage().heapUsed - startMemory;
 
-      // Extract route parameters if they exist
-      const routeParams = req?.params || {};
+      // Extract route parameters if they exist with null safety
+      const routeParams = req?.params && typeof req.params === 'object' ? req.params : {};
       
-      // Truncate large data structures before logging
-      const truncatedBody = req?.body ? this.truncateForLog(req.body) : undefined;
-      const truncatedQuery = req?.query ? this.truncateForLog(req.query) : undefined;
-      const truncatedParams = Object.keys(routeParams).length ? this.truncateForLog(routeParams) : undefined;
+      // Truncate large data structures before logging with type guards
+      const truncatedBody = req?.body && typeof req.body === 'object' ? this.truncateForLog(req.body) : undefined;
+      const truncatedQuery = req?.query && typeof req.query === 'object' ? this.truncateForLog(req.query) : undefined;
+      const truncatedParams = Object.keys(routeParams).length > 0 ? this.truncateForLog(routeParams) : undefined;
       
-      // Get additional metadata from config
-      const additionalMeta = this.config.additionalMetadata(req, res);
+      // Get additional metadata from config with safe function call
+      const additionalMeta = this.config.additionalMetadata ? this.config.additionalMetadata(req, res) : {};
 
       const logData: RequestLogData = removeUndefinedDeep({
         timestamp: new Date().toISOString(),
         requestId,
         correlationId: reqContext.correlationId,
-        method: req?.method,
-        url: req?.url,
-        status: res.statusCode,
-        statusText: res.statusMessage,
+        method: req?.method || 'UNKNOWN',
+        url: req?.url || req?.path || '/',
+        status: res.statusCode || 0,
+        statusText: res.statusMessage || '',
         duration: Math.round(duration),
         memoryUsed: Math.round(memoryUsed / 1024 / 1024) + 'MB',
         query: truncatedQuery,
@@ -304,8 +282,8 @@ export class EnhancedLogger {
         userEmail: user?.email,
         context: reqContext,
         headers: {
-          contentType: res.get('Content-Type'),
-          contentLength: res.get('Content-Length')
+          contentType: res.get?.('Content-Type'),
+          contentLength: res.get?.('Content-Length')
         },
         ...additionalMeta
       }) as RequestLogData;
@@ -324,17 +302,11 @@ export class EnhancedLogger {
       } else {
         this.logger.info(logData);
       }
-    });
+    };
 
-    // Log unhandled errors
-    res.on('error', (error) => {
-      this.logger.error({
-        requestId,
-        error: error.message,
-        stack: error.stack,
-        context: reqContext
-      });
-    });
+    // Register event listeners
+    res.once('finish', finishHandler);
+    res.once('error', errorHandler);
 
     next();
   };

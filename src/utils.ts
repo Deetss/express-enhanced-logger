@@ -2,10 +2,29 @@ import { inspect } from 'util';
 import chalk from 'chalk';
 
 type ChalkFunction = (text: string) => string;
-import { LoggerConfig } from './types.js';
+import { LoggerConfig, WinstonLogInfo } from './types.js';
+
+// Constants for log formatting
+export const LEVEL_EMOJIS = {
+  error: '❌',
+  warn: '⚠️ ',
+  info: 'ℹ️ ',
+  debug: '🔍',
+  query: '🛢️ '
+} as const;
+
+export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'] as const;
+export type HttpMethod = typeof HTTP_METHODS[number];
+
+export const STATUS_CODE_RANGES = {
+  SERVER_ERROR: 500,
+  CLIENT_ERROR: 400,
+  REDIRECT: 300,
+  SUCCESS: 200
+} as const;
 
 // Default configuration
-export const DEFAULT_CONFIG: Required<Omit<LoggerConfig, 'customLogFormat'>> & { customLogFormat?: (info: any) => string } = {
+export const DEFAULT_CONFIG: Required<Omit<LoggerConfig, 'customLogFormat'>> & { customLogFormat?: (info: WinstonLogInfo) => string } = {
   level: 'info' as const,
   enableFileLogging: true,
   logsDirectory: 'logs',
@@ -86,7 +105,7 @@ export const createTruncateForLog = (config: LoggerConfig) => {
   return truncateForLog;
 };
 
-export const getDurationColor = (duration: string, enableColors: boolean) => {
+export const getDurationColor = (duration: string, enableColors: boolean): ChalkFunction => {
   if (!enableColors) return (text: string) => text;
   
   return Number(duration) > 1000
@@ -94,6 +113,45 @@ export const getDurationColor = (duration: string, enableColors: boolean) => {
     : Number(duration) > 500
       ? chalk.yellow
       : chalk.green;
+};
+
+export const getStatusColor = (status: number, enableColors: boolean): ChalkFunction => {
+  if (!enableColors) return (text: string) => text;
+  
+  return status >= STATUS_CODE_RANGES.SERVER_ERROR ? chalk.red :
+         status >= STATUS_CODE_RANGES.CLIENT_ERROR ? chalk.yellow :
+         status >= STATUS_CODE_RANGES.REDIRECT ? chalk.cyan :
+         status >= STATUS_CODE_RANGES.SUCCESS ? chalk.green :
+         chalk.blue;
+};
+
+export const getLevelColor = (level: string, enableColors: boolean): ChalkFunction => {
+  if (!enableColors) return (text: string) => text;
+  
+  const levelColors = {
+    error: chalk.red,
+    warn: chalk.yellow,
+    info: chalk.blue,
+    debug: chalk.gray,
+    query: chalk.cyan
+  };
+  
+  return levelColors[level as keyof typeof levelColors] || ((text: string) => text);
+};
+
+export const getMethodColor = (method: string, enableColors: boolean): string => {
+  if (!enableColors) return method.padEnd(6);
+  
+  const methodColors: Record<string, ChalkFunction> = {
+    GET: chalk.green,
+    POST: chalk.yellow,
+    PUT: chalk.blue,
+    DELETE: chalk.red,
+    PATCH: chalk.magenta
+  };
+  
+  const colorFn = methodColors[method] || chalk.white;
+  return colorFn(method.padEnd(6));
 };
 
 export const formatLogMessage = ({
