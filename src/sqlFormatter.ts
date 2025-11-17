@@ -234,37 +234,28 @@ function smartTruncateQuery(query: string, enableColors: boolean): string {
     return query;
   }
 
-  // Truncate the query intelligently
-  // Find the first IN clause and show query up to that point + truncated IN clause
-  const firstInMatch = query.match(/IN\s*\(/i);
-  if (!firstInMatch || firstInMatch.index === undefined) {
-    return query;
-  }
-
-  const beforeIn = query.substring(0, firstInMatch.index + firstInMatch[0].length);
-  const afterIn = query.substring(firstInMatch.index + firstInMatch[0].length);
-
-  // Extract the parameters from the IN clause
-  const closingParenIndex = afterIn.indexOf(')');
-  if (closingParenIndex === -1) {
-    return query;
-  }
-
-  const inParams = afterIn.substring(0, closingParenIndex);
-  const afterInClause = afterIn.substring(closingParenIndex);
-
-  // Split parameters and show first few and last few
-  const params = inParams.split(',').map((p) => p.trim());
-  if (params.length <= PARAM_THRESHOLD) {
-    return query;
-  }
-
-  const showCount = 3;
-  const firstParams = params.slice(0, showCount).join(',');
-  const lastParams = params.slice(-showCount).join(',');
+  // Truncate ALL large IN clauses in the query
+  let truncatedQuery = query;
   const dimFn = enableColors ? chalk.dim : (text: string) => text;
-  const truncatedIn = `${firstParams}${dimFn(`,...${params.length - showCount * 2} more...`)},${lastParams}`;
+  
+  // Process each IN clause
+  truncatedQuery = truncatedQuery.replace(/IN\s*\(([^)]+)\)/gi, (match, inParams) => {
+    // Split parameters and count them
+    const params = inParams.split(',').map((p: string) => p.trim());
+    
+    // Only truncate if there are many parameters
+    if (params.length <= PARAM_THRESHOLD) {
+      return match;
+    }
 
-  return `${beforeIn}${truncatedIn}${afterInClause}`;
+    const showCount = 3;
+    const firstParams = params.slice(0, showCount).join(',');
+    const lastParams = params.slice(-showCount).join(',');
+    const truncatedIn = `${firstParams}${dimFn(`,...${params.length - showCount * 2} more...`)},${lastParams}`;
+
+    return `IN (${truncatedIn})`;
+  });
+
+  return truncatedQuery;
 }
 
