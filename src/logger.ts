@@ -360,11 +360,15 @@ export class EnhancedLogger {
       const duration = Number(e.duration);
 
       if (duration > this.config.slowQueryThreshold) {
+        // Truncate both query and params for slow queries
+        const truncatedQuery = e.query.substring(0, 200) + (e.query.length > 200 ? '...' : '');
+        const truncatedParams = this.truncateForLog(formattedParams);
+        
         this.logger.warn('Slow query detected', {
           type: queryType,
-          query: e.query.substring(0, 200) + (e.query.length > 200 ? '...' : ''),
+          query: truncatedQuery,
           duration: `${duration}ms`,
-          params: formattedParams,
+          params: truncatedParams,
         });
       } else {
         // Use logger.query() with proper QueryLogData format for enhanced formatting
