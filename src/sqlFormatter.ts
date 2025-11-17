@@ -24,9 +24,13 @@ export const createSqlFormatter = (config: LoggerConfig) => {
       if (!parsedParams) {
         return query;
       }
-      
+
       const paramArray = Array.isArray(parsedParams) ? parsedParams : [];
-      return replaceParamsInQuery(query, paramArray, { truncateForLog, enableColors, maxStringLength });
+      return replaceParamsInQuery(query, paramArray, {
+        truncateForLog,
+        enableColors,
+        maxStringLength,
+      });
     } catch {
       // Silently return original query if formatting fails
       return query;
@@ -68,12 +72,12 @@ function manualParseArray(params: string): JsonValue[] | null {
     if (content === '') {
       return [];
     }
-    
+
     const elements: string[] = [];
     let current = '';
     let inQuotes = false;
     let escapeNext = false;
-    
+
     for (let i = 0; i < content.length; i++) {
       const char = content[i];
       if (escapeNext) {
@@ -95,8 +99,8 @@ function manualParseArray(params: string): JsonValue[] | null {
     if (current.trim()) {
       elements.push(current.trim());
     }
-    
-    return elements.map(el => {
+
+    return elements.map((el) => {
       el = el.trim();
       if (el.startsWith('"') && el.endsWith('"')) {
         return el.slice(1, -1);
@@ -116,21 +120,22 @@ function manualParseArray(params: string): JsonValue[] | null {
  * Replace @P1, @P2 placeholders with actual parameter values
  */
 function replaceParamsInQuery(
-  query: string, 
-  paramArray: JsonValue[], 
-  options: { truncateForLog: (value: unknown) => unknown; enableColors: boolean; maxStringLength: number }
+  query: string,
+  paramArray: JsonValue[],
+  options: {
+    truncateForLog: (value: unknown) => unknown;
+    enableColors: boolean;
+    maxStringLength: number;
+  }
 ): string {
   const { truncateForLog, enableColors, maxStringLength } = options;
   let formattedQuery = query;
-  
+
   paramArray.forEach((param: JsonValue, index: number) => {
     const placeholder = `@P${index + 1}`;
     const displayParam = formatParamValue(param, { truncateForLog, enableColors, maxStringLength });
-    
-    formattedQuery = formattedQuery.replace(
-      new RegExp(placeholder, 'g'),
-      displayParam
-    );
+
+    formattedQuery = formattedQuery.replace(new RegExp(placeholder, 'g'), displayParam);
   });
 
   return formattedQuery;
@@ -141,20 +146,25 @@ function replaceParamsInQuery(
  */
 function formatParamValue(
   param: JsonValue,
-  options: { truncateForLog: (value: unknown) => unknown; enableColors: boolean; maxStringLength: number }
+  options: {
+    truncateForLog: (value: unknown) => unknown;
+    enableColors: boolean;
+    maxStringLength: number;
+  }
 ): string {
   const { truncateForLog, enableColors, maxStringLength } = options;
-  
+
   let displayParam: string;
-  
+
   if (Array.isArray(param)) {
-    const allPrimitives = param.every(item => 
-      typeof item === 'string' || 
-      typeof item === 'number' || 
-      typeof item === 'boolean' || 
-      item === null
+    const allPrimitives = param.every(
+      (item) =>
+        typeof item === 'string' ||
+        typeof item === 'number' ||
+        typeof item === 'boolean' ||
+        item === null
     );
-    
+
     if (allPrimitives && param.length > 10) {
       displayParam = formatArrayForSql(param, enableColors);
     } else {
@@ -167,7 +177,7 @@ function formatParamValue(
   } else {
     displayParam = typeof param === 'string' ? `'${param}'` : String(param);
   }
-  
+
   return enableColors ? chalk.bold(displayParam) : displayParam;
 }
 
@@ -176,15 +186,15 @@ function formatParamValue(
  */
 function formatArrayForSql(arr: JsonValue[], enableColors: boolean): string {
   const MAX_INLINE_ITEMS = 10;
-  
+
   if (arr.length <= MAX_INLINE_ITEMS) {
     return arr.join(',');
   }
-  
+
   const halfShow = Math.floor(MAX_INLINE_ITEMS / 2);
   const firstItems = arr.slice(0, halfShow);
   const lastItems = arr.slice(-halfShow);
-  
+
   const dimFn = enableColors ? chalk.dim : (text: string) => text;
   return `${firstItems.join(',')}${dimFn(`,...${arr.length - MAX_INLINE_ITEMS} more...`)},${lastItems.join(',')}`;
 }

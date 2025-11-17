@@ -8,22 +8,24 @@ import { mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 
 import { LoggerConfig, RequestLogData, QueryLogData, WinstonLogInfo } from './types.js';
-import { 
-  DEFAULT_CONFIG, 
-  createTruncateForLog, 
-  getDurationColor, 
+import {
+  DEFAULT_CONFIG,
+  createTruncateForLog,
+  getDurationColor,
   getStatusColor,
   getLevelColor,
   getMethodColor,
-  formatLogMessage, 
+  formatLogMessage,
   removeUndefinedDeep,
-  LEVEL_EMOJIS
+  LEVEL_EMOJIS,
 } from './utils.js';
 import { createSqlFormatter } from './sqlFormatter.js';
 
 export class EnhancedLogger {
   private logger: winston.Logger;
-  private config: Required<Omit<LoggerConfig, 'customLogFormat'>> & { customLogFormat?: (info: WinstonLogInfo) => string };
+  private config: Required<Omit<LoggerConfig, 'customLogFormat'>> & {
+    customLogFormat?: (info: WinstonLogInfo) => string;
+  };
   private truncateForLog: (value: unknown, depth?: number) => unknown;
   private formatSqlQuery: (query: string, params: string) => string;
 
@@ -31,7 +33,7 @@ export class EnhancedLogger {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.truncateForLog = createTruncateForLog(this.config);
     this.formatSqlQuery = createSqlFormatter(this.config);
-    
+
     // Ensure logs directory exists if file logging is enabled
     if (this.config.enableFileLogging) {
       const logsDir = join(process.cwd(), this.config.logsDirectory);
@@ -45,7 +47,7 @@ export class EnhancedLogger {
   }
 
   private createLogger(): winston.Logger {
-    const customFormat = this.config.customLogFormat 
+    const customFormat = this.config.customLogFormat
       ? format.printf((info) => this.config.customLogFormat!(info as unknown as WinstonLogInfo))
       : this.createDefaultFormat();
 
@@ -61,7 +63,7 @@ export class EnhancedLogger {
     // File transports (optional)
     if (this.config.enableFileLogging && process.env.NODE_ENV !== 'test') {
       const logsDir = join(process.cwd(), this.config.logsDirectory);
-      
+
       transports.push(
         new DailyRotateFile({
           filename: join(logsDir, 'error-%DATE%.log'),
@@ -70,7 +72,7 @@ export class EnhancedLogger {
           format: format.json(),
           maxFiles: this.config.maxFiles,
           maxSize: this.config.maxFileSize,
-          zippedArchive: this.config.zippedArchive
+          zippedArchive: this.config.zippedArchive,
         }),
         new DailyRotateFile({
           filename: join(logsDir, 'combined-%DATE%.log'),
@@ -78,7 +80,7 @@ export class EnhancedLogger {
           format: format.json(),
           maxFiles: this.config.maxFiles,
           maxSize: this.config.maxFileSize,
-          zippedArchive: this.config.zippedArchive
+          zippedArchive: this.config.zippedArchive,
         })
       );
     }
@@ -89,11 +91,11 @@ export class EnhancedLogger {
         warn: 1,
         query: 2,
         info: 3,
-        debug: 4
+        debug: 4,
       },
       level: this.config.level,
       format: customFormat,
-      transports
+      transports,
     });
   }
 
@@ -109,19 +111,38 @@ export class EnhancedLogger {
         if (this.config.simpleLogging) {
           const logInfo = info as unknown as WinstonLogInfo;
           const { message } = logInfo;
-          return typeof message === 'object' 
+          return typeof message === 'object'
             ? inspect(message, { colors: this.config.enableColors, depth: 5 })
             : String(message);
         }
         const { level, message, timestamp, ...meta } = info as unknown as WinstonLogInfo;
 
         const levelEmoji = LEVEL_EMOJIS[level as keyof typeof LEVEL_EMOJIS] || '📝';
-        const duration = message?.duration || '0';
-        const durationColor = getDurationColor(duration, this.config.enableColors);
+
+        // Type guard for HTTP request logs
+        const isHttpLog = (
+          msg: unknown
+        ): msg is {
+          method: string;
+          url: string;
+          status: number;
+          statusText: string;
+          duration: string;
+        } => {
+          return typeof msg === 'object' && msg !== null && 'method' in msg && 'url' in msg;
+        };
+
+        // Type guard for SQL query logs
+        const isQueryLog = (
+          msg: unknown
+        ): msg is { type: string; query: string; params: string; duration: string } => {
+          return typeof msg === 'object' && msg !== null && 'query' in msg && 'params' in msg;
+        };
 
         // Handle HTTP request logs
-        if (typeof message === 'object' && message.method) {
-          const { method, url, status, statusText } = message;
+        if (isHttpLog(message)) {
+          const { method, url, status, statusText, duration } = message;
+          const durationColor = getDurationColor(duration, this.config.enableColors);
 
           const coloredMethod = getMethodColor(method, this.config.enableColors);
           const statusColor = getStatusColor(status, this.config.enableColors);
@@ -134,35 +155,51 @@ export class EnhancedLogger {
             status,
             statusText,
             duration,
-            message,
+            message: message as {
+              requestId?: string;
+              userEmail?: string;
+              query?: string;
+              body?: unknown;
+            },
             statusColor,
             durationColor,
-            enableColors: this.config.enableColors
+            enableColors: this.config.enableColors,
           });
-        } 
+        }
         // Handle SQL query logs
-        else if (typeof message === 'object' && level === 'query' && this.config.enablePrismaIntegration) {
+        else if (isQueryLog(message) && level === 'query' && this.config.enablePrismaIntegration) {
           const { type, query, params, duration } = message;
           const formattedQuery = this.formatSqlQuery(query, params);
+          const durationColor = getDurationColor(
+            duration.replace('ms', ''),
+            this.config.enableColors
+          );
 
-          const typeColors = this.config.enableColors ? {
-            SELECT: chalk.cyan(formattedQuery),
-            INSERT: chalk.green(formattedQuery),
-            CREATE: chalk.green(formattedQuery),
-            UPDATE: chalk.yellow(formattedQuery),
-            DELETE: chalk.red(formattedQuery)
-          } : {
-            SELECT: formattedQuery,
-            INSERT: formattedQuery,
-            CREATE: formattedQuery,
-            UPDATE: formattedQuery,
-            DELETE: formattedQuery
-          };
+          const typeColors = this.config.enableColors
+            ? {
+                SELECT: chalk.cyan(formattedQuery),
+                INSERT: chalk.green(formattedQuery),
+                CREATE: chalk.green(formattedQuery),
+                UPDATE: chalk.yellow(formattedQuery),
+                DELETE: chalk.red(formattedQuery),
+              }
+            : {
+                SELECT: formattedQuery,
+                INSERT: formattedQuery,
+                CREATE: formattedQuery,
+                UPDATE: formattedQuery,
+                DELETE: formattedQuery,
+              };
 
-          const coloredQuery = typeColors[type as keyof typeof typeColors] ||
-            (formattedQuery.startsWith('DECLARE @generated_keys table([id] BIGINT)') ?
-              (this.config.enableColors ? chalk.green(formattedQuery) : formattedQuery) :
-              (this.config.enableColors ? chalk.white(formattedQuery) : formattedQuery));
+          const coloredQuery =
+            typeColors[type as keyof typeof typeColors] ||
+            (formattedQuery.startsWith('DECLARE @generated_keys table([id] BIGINT)')
+              ? this.config.enableColors
+                ? chalk.green(formattedQuery)
+                : formattedQuery
+              : this.config.enableColors
+                ? chalk.white(formattedQuery)
+                : formattedQuery);
 
           const statusColor = this.config.enableColors ? chalk.dim : (text: string) => text;
 
@@ -173,12 +210,12 @@ export class EnhancedLogger {
             statusText: '',
             duration: duration.replace('ms', ''),
             message: {
-              ...message,
-              query: undefined
-            },
+              ...(message as Record<string, unknown>),
+              query: undefined,
+            } as { requestId?: string; userEmail?: string; query?: string; body?: unknown },
             statusColor,
             durationColor,
-            enableColors: this.config.enableColors
+            enableColors: this.config.enableColors,
           });
         }
 
@@ -234,7 +271,7 @@ export class EnhancedLogger {
       ip: req?.ip || 'unknown',
       userAgent: req?.get?.('User-Agent') || undefined,
       referer: req?.get?.('Referer') || undefined,
-      correlationId: requestId
+      correlationId: requestId,
     };
 
     // Handler for logging errors
@@ -243,7 +280,7 @@ export class EnhancedLogger {
         requestId,
         error: error.message,
         stack: error.stack,
-        context: reqContext
+        context: reqContext,
       });
     };
 
@@ -257,14 +294,19 @@ export class EnhancedLogger {
 
       // Extract route parameters if they exist with null safety
       const routeParams = req?.params && typeof req.params === 'object' ? req.params : {};
-      
+
       // Truncate large data structures before logging with type guards
-      const truncatedBody = req?.body && typeof req.body === 'object' ? this.truncateForLog(req.body) : undefined;
-      const truncatedQuery = req?.query && typeof req.query === 'object' ? this.truncateForLog(req.query) : undefined;
-      const truncatedParams = Object.keys(routeParams).length > 0 ? this.truncateForLog(routeParams) : undefined;
-      
+      const truncatedBody =
+        req?.body && typeof req.body === 'object' ? this.truncateForLog(req.body) : undefined;
+      const truncatedQuery =
+        req?.query && typeof req.query === 'object' ? this.truncateForLog(req.query) : undefined;
+      const truncatedParams =
+        Object.keys(routeParams).length > 0 ? this.truncateForLog(routeParams) : undefined;
+
       // Get additional metadata from config with safe function call
-      const additionalMeta = this.config.additionalMetadata ? this.config.additionalMetadata(req, res) : {};
+      const additionalMeta = this.config.additionalMetadata
+        ? this.config.additionalMetadata(req, res)
+        : {};
 
       const logData: RequestLogData = removeUndefinedDeep({
         timestamp: new Date().toISOString(),
@@ -283,9 +325,9 @@ export class EnhancedLogger {
         context: reqContext,
         headers: {
           contentType: res.get?.('Content-Type'),
-          contentLength: res.get?.('Content-Length')
+          contentLength: res.get?.('Content-Length'),
         },
-        ...additionalMeta
+        ...additionalMeta,
       }) as RequestLogData;
 
       // Log at different levels based on conditions
@@ -295,7 +337,7 @@ export class EnhancedLogger {
         const durationColor = getDurationColor(String(duration), this.config.enableColors);
         this.logger.warn({
           ...logData,
-          message: `Slow request detected - ${durationColor(`${duration}ms`)}`
+          message: `Slow request detected - ${durationColor(`${duration}ms`)}`,
         });
       } else if (memoryUsed > this.config.memoryWarningThreshold) {
         this.logger.warn({ ...logData, message: 'High memory usage detected' });

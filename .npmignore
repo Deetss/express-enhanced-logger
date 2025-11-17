@@ -1,0 +1,46 @@
+# Source files
+src/
+tsconfig.json
+
+# Tests
+tests/
+*.test.js
+*.test.ts
+jest.config.js
+coverage/
+
+# Development files
+.git/
+.github/
+.vscode/
+*.log
+logs/
+node_modules/
+
+# Documentation
+CONTRIBUTING.md
+PUBLISH.md
+RELEASE.md
+CHANGELOG.md
+
+# Configuration files
+.eslintrc*
+.prettierrc*
+.editorconfig
+.gitignore
+.npmignore
+
+# Development scripts
+*.md
+!README.md
+!LICENSE
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
