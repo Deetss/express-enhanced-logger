@@ -1,3 +1,10 @@
+## [2.3.2](https://github.com/Deetss/express-enhanced-logger/compare/v2.3.1...v2.3.2) (2025-11-17)
+
+
+### Bug Fixes
+
+* update README and logger to clarify Prisma integration requirements and improve SQL query truncation handling ([51b1b95](https://github.com/Deetss/express-enhanced-logger/commit/51b1b9570422002f271a11c1555d90e5c785fec3))
+
 ## [2.3.1](https://github.com/Deetss/express-enhanced-logger/compare/v2.3.0...v2.3.1) (2025-11-17)
 
 
