@@ -1,3 +1,10 @@
+## [2.3.1](https://github.com/Deetss/express-enhanced-logger/compare/v2.3.0...v2.3.1) (2025-11-17)
+
+
+### Bug Fixes
+
+* refactor smartTruncateQuery to truncate all large IN clauses in SQL queries ([3cf1271](https://github.com/Deetss/express-enhanced-logger/commit/3cf12714c8994e94a148dfcaf117e8f15b175c75))
+
 # [2.3.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.2.0...v2.3.0) (2025-11-17)
 
 
