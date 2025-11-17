@@ -7,7 +7,7 @@ import { NextFunction, Request, Response } from 'express';
 import { mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 
-import { LoggerConfig, RequestLogData, QueryLogData, WinstonLogInfo } from './types.js';
+import { LoggerConfig, RequestLogData, QueryLogData, WinstonLogInfo, PrismaClientLike } from './types.js';
 import {
   DEFAULT_CONFIG,
   createTruncateForLog,
@@ -18,6 +18,8 @@ import {
   formatLogMessage,
   removeUndefinedDeep,
   LEVEL_EMOJIS,
+  getQueryType,
+  formatParams,
 } from './utils.js';
 import { createSqlFormatter } from './sqlFormatter.js';
 
@@ -339,5 +341,55 @@ export class EnhancedLogger {
     this.formatSqlQuery = createSqlFormatter(this.config);
     // Recreate logger with new config
     this.logger = this.createLogger();
+  }
+
+  // Setup Prisma logging integration
+  setupPrismaLogging(prismaClient: PrismaClientLike) {
+    // Only setup if not in test environment
+    if (process.env.NODE_ENV === 'test') {
+      return;
+    }
+
+    // Enable Prisma integration
+    this.config.enablePrismaIntegration = true;
+
+    // Query event handler
+    prismaClient.$on('query', (e) => {
+      const queryType = getQueryType(e.query);
+      const formattedParams = formatParams(e.params);
+      const duration = Number(e.duration);
+
+      if (duration > this.config.slowQueryThreshold) {
+        this.logger.warn('Slow query detected', {
+          type: queryType,
+          query: e.query.substring(0, 200) + (e.query.length > 200 ? '...' : ''),
+          duration: `${duration}ms`,
+          params: formattedParams,
+        });
+      } else {
+        // Use logger.query() with proper QueryLogData format for enhanced formatting
+        this.query({
+          type: queryType,
+          query: e.query,
+          params: formattedParams,
+          duration: `${duration}ms`,
+        });
+      }
+    });
+
+    // Info event handler
+    prismaClient.$on('info', (e) => {
+      this.logger.info(`PRISMA - ${e.message}`);
+    });
+
+    // Warn event handler
+    prismaClient.$on('warn', (e) => {
+      this.logger.warn(`PRISMA - ${e.message}`);
+    });
+
+    // Error event handler
+    prismaClient.$on('error', (e) => {
+      this.logger.error(`PRISMA ERROR - ${e.message}`);
+    });
   }
 }

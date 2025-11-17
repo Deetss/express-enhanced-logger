@@ -1,10 +1,10 @@
 import { EnhancedLogger } from './logger.js';
-import { LoggerConfig, QueryLogData, RequestLogData } from './types.js';
+import { LoggerConfig, QueryLogData, RequestLogData, PrismaClientLike } from './types.js';
 import { DEFAULT_CONFIG } from './utils.js';
 
 // Export main class and types
 export { EnhancedLogger };
-export type { LoggerConfig, QueryLogData, RequestLogData };
+export type { LoggerConfig, QueryLogData, RequestLogData, PrismaClientLike };
 
 // Create a default logger instance
 let defaultLogger: EnhancedLogger | null = null;
@@ -82,6 +82,30 @@ export function debug(message: string | Record<string, unknown>, meta?: Record<s
  */
 export function query(data: QueryLogData) {
   getLogger().query(data);
+}
+
+/**
+ * Setup Prisma logging integration with the default logger
+ * @param prismaClient Prisma client instance with $on method
+ * @example
+ * ```typescript
+ * import { PrismaClient } from '@prisma/client';
+ * import { setupPrismaLogging } from 'express-enhanced-logger';
+ * 
+ * const prismaClient = new PrismaClient({
+ *   log: [
+ *     { emit: 'event', level: 'query' },
+ *     { emit: 'event', level: 'info' },
+ *     { emit: 'event', level: 'warn' },
+ *     { emit: 'event', level: 'error' }
+ *   ]
+ * });
+ * 
+ * setupPrismaLogging(prismaClient);
+ * ```
+ */
+export function setupPrismaLogging(prismaClient: PrismaClientLike) {
+  getLogger().setupPrismaLogging(prismaClient);
 }
 
 // Export default configuration for reference
