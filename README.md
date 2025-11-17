@@ -234,6 +234,8 @@ app.use(
 
 The logger includes smart SQL formatting that efficiently truncates large queries, particularly IN clauses with many parameters.
 
+**⚠️ IMPORTANT:** Prisma integration is **incompatible with `simpleLogging: true`**. Make sure to set `simpleLogging: false` (or omit it, as false is the default) when using `logger.query()`.
+
 ```typescript
 import { createLogger } from 'express-enhanced-logger';
 import { PrismaClient } from '@prisma/client';
@@ -242,6 +244,7 @@ const logger = createLogger({
   enablePrismaIntegration: true,
   enableSqlFormatting: true,
   level: 'query', // Enable query-level logging
+  simpleLogging: false, // REQUIRED: Must be false for Prisma integration
 });
 
 const prisma = new PrismaClient({
@@ -255,11 +258,12 @@ const prisma = new PrismaClient({
 
 // Subscribe to Prisma query events
 prisma.$on('query', (e) => {
+  // Use logger.query() with proper data structure
   logger.query({
-    type: 'query',
+    type: e.query.split(' ')[0].toUpperCase(), // Extract query type (SELECT, INSERT, etc.)
     query: e.query,
     params: JSON.stringify(e.params),
-    duration: `${e.duration}`,
+    duration: `${e.duration}ms`,
   });
 });
 ```
@@ -274,7 +278,16 @@ SELECT * FROM users WHERE id IN (1, 2, 3)
 
 // Large IN clauses - smartly truncated
 SELECT * FROM users WHERE id IN (1,2,3,...12 more...,18,19,20)
+
+// Works even without parameter values - truncates placeholders
+SELECT * FROM lots WHERE id IN (@P1,@P2,@P3,...530 more...,@P534,@P535,@P536)
 ```
+
+**Common Issues:**
+
+- **"undefined" in logs**: You have `simpleLogging: true` enabled. Set it to `false`.
+- **Queries not truncated**: Make sure you're calling `logger.query()` (not `logger.info()`) with the correct data structure `{type, query, params, duration}`.
+- **Configuration warning on startup**: The logger will warn you if you have incompatible settings enabled.
 
 ### Custom User Extraction
 
