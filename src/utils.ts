@@ -44,6 +44,7 @@ export const DEFAULT_CONFIG: Required<Omit<LoggerConfig, 'customLogFormat'>> & {
   enableSqlFormatting: true,
   enablePrismaIntegration: false,
   simpleLogging: false,
+  loggingStyle: 'rails' as const,
   customQueryFormatter: (query: string, _params: string) => query,
   getUserFromRequest: (req: Request) => req.currentUser,
   getRequestId: (req: Request) => req.requestId,

@@ -165,6 +165,18 @@ export class EnhancedLogger {
         if (level === 'query' && this.config.enablePrismaIntegration && 'query' in info && 'type' in info) {
           const queryInfo = info as unknown as { type: string; query: string; params?: string; duration: string; timestamp: string };
           const { type, query, params = '', duration } = queryInfo;
+          
+          // Rails-style query logging (default)
+          if (this.config.loggingStyle === 'rails') {
+            const durationValue = duration.replace('ms', '');
+            const formattedQuery = this.formatSqlQuery(query, params);
+            const paramsArray = params ? JSON.parse(params) : [];
+            const paramsDisplay = paramsArray.length > 0 ? `  ${JSON.stringify(paramsArray)}` : '';
+            
+            return `  ${type} (${durationValue})  ${formattedQuery}${paramsDisplay}`;
+          }
+          
+          // Enhanced-style colored query logging
           const formattedQuery = this.formatSqlQuery(query, params);
           const durationColor = getDurationColor(
             duration.replace('ms', ''),
@@ -238,6 +250,68 @@ export class EnhancedLogger {
     const start = performance.now();
     const startMemory = process.memoryUsage().heapUsed;
 
+    // Rails-style: Log request start
+    if (this.config.loggingStyle === 'rails') {
+      const timestamp = new Date().toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        timeZoneName: 'short',
+      });
+      const ip = req?.ip || req?.connection?.remoteAddress || '127.0.0.1';
+      this.logger.info(`Started ${req?.method || 'UNKNOWN'} "${req?.url || '/'}" for ${ip} at ${timestamp}`);
+      
+      // Log route/controller if available
+      const route = req?.route?.path || req?.path || req?.url;
+      const acceptHeader = req?.get?.('Accept') || 'HTML';
+      const format = acceptHeader.includes('json') ? 'JSON' : acceptHeader.includes('xml') ? 'XML' : 'HTML';
+      
+      // Try to get controller-like information
+      let controllerInfo = route;
+      
+      // Check if route has a custom name/controller property
+      if (req?.route) {
+        // Check for custom controller metadata (you can set this on routes)
+        const customController = (req.route as any).controller;
+        const customAction = (req.route as any).action;
+        
+        if (customController && customAction) {
+          controllerInfo = `${customController}#${customAction}`;
+        } else if (customController) {
+          controllerInfo = `${customController}`;
+        } else {
+          // Try to get handler function name
+          const handler = req.route.stack?.[0]?.handle;
+          if (handler && handler.name && handler.name !== 'anonymous') {
+            controllerInfo = `${route} (${handler.name})`;
+          }
+        }
+      }
+      
+      if (controllerInfo) {
+        this.logger.info(`Processing by ${controllerInfo} as ${format}`);
+      }
+
+      // Log parameters if they exist
+      const hasParams = (req?.params && Object.keys(req.params).length > 0) ||
+                       (req?.query && Object.keys(req.query).length > 0) ||
+                       (req?.body && Object.keys(req.body).length > 0);
+      
+      if (hasParams) {
+        const allParams = {
+          ...req?.params,
+          ...req?.query,
+          ...req?.body,
+        };
+        this.logger.info(`  Parameters: ${inspect(allParams, { depth: 5, compact: true })}`);
+      }
+    }
+
     // Extract user and request ID using configured functions with null safety
     const user = this.config.getUserFromRequest ? this.config.getUserFromRequest(req) : undefined;
     const requestId = this.config.getRequestId ? this.config.getRequestId(req) : undefined;
@@ -267,6 +341,14 @@ export class EnhancedLogger {
 
       const duration = performance.now() - start;
       const memoryUsed = process.memoryUsage().heapUsed - startMemory;
+
+      // Rails-style completion log
+      if (this.config.loggingStyle === 'rails') {
+        const statusText = res.statusMessage || '';
+        const durationMs = Math.round(duration);
+        this.logger.info(`Completed ${res.statusCode} ${statusText} in ${durationMs}ms`);
+        return; // Skip the regular logging when in Rails mode
+      }
 
       // Extract route parameters if they exist with null safety
       const routeParams = req?.params && typeof req.params === 'object' ? req.params : {};
@@ -364,12 +446,17 @@ export class EnhancedLogger {
         const truncatedQuery = e.query.substring(0, 200) + (e.query.length > 200 ? '...' : '');
         const truncatedParams = this.truncateForLog(formattedParams);
         
-        this.logger.warn('Slow query detected', {
-          type: queryType,
-          query: truncatedQuery,
-          duration: `${duration}ms`,
-          params: truncatedParams,
-        });
+        if (this.config.loggingStyle === 'rails') {
+          this.logger.warn(`  ${queryType} (${duration}ms)  ${truncatedQuery}  ${truncatedParams}`);
+          this.logger.warn(`  Slow query detected`);
+        } else {
+          this.logger.warn('Slow query detected', {
+            type: queryType,
+            query: truncatedQuery,
+            duration: `${duration}ms`,
+            params: truncatedParams,
+          });
+        }
       } else {
         // Use logger.query() with proper QueryLogData format for enhanced formatting
         this.query({
