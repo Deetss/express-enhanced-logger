@@ -532,4 +532,120 @@ describe('Utils Unit Tests', () => {
       expect(metadata).toEqual({});
     });
   });
+
+  describe('formatParams', () => {
+    it('should format string params that are valid JSON', () => {
+      const { formatParams } = require('../src/utils');
+      const result = formatParams('["value1", "value2"]');
+      expect(result).toBe('["value1", "value2"]');
+    });
+
+    it('should format string params that are not valid JSON', () => {
+      const { formatParams } = require('../src/utils');
+      const result = formatParams('invalid json string');
+      expect(result).toBe('"invalid json string"');
+    });
+
+    it('should format object params', () => {
+      const { formatParams } = require('../src/utils');
+      const result = formatParams({ key: 'value' });
+      expect(result).toContain('"key"');
+      expect(result).toContain('"value"');
+    });
+
+    it('should format array params', () => {
+      const { formatParams } = require('../src/utils');
+      const result = formatParams([1, 2, 3]);
+      expect(result).toContain('1');
+      expect(result).toContain('2');
+      expect(result).toContain('3');
+    });
+
+    it('should handle params that cannot be stringified', () => {
+      const { formatParams } = require('../src/utils');
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      
+      // Create a circular reference
+      const circular: any = { a: 1 };
+      circular.self = circular;
+      
+      const result = formatParams(circular);
+      expect(typeof result).toBe('string');
+      expect(consoleSpy).toHaveBeenCalledWith('Error formatting params for logging:', expect.any(Error));
+      
+      consoleSpy.mockRestore();
+    });
+
+    it('should handle null params', () => {
+      const { formatParams } = require('../src/utils');
+      const result = formatParams(null);
+      expect(result).toBe('null');
+    });
+
+    it('should handle undefined params', () => {
+      const { formatParams } = require('../src/utils');
+      const result = formatParams(undefined);
+      // JSON.stringify(undefined) returns undefined (not a string "undefined")
+      expect(result).toBeUndefined();
+    });
+
+    it('should handle number params', () => {
+      const { formatParams } = require('../src/utils');
+      const result = formatParams(123);
+      expect(result).toBe('123');
+    });
+
+    it('should handle boolean params', () => {
+      const { formatParams } = require('../src/utils');
+      const result = formatParams(true);
+      expect(result).toBe('true');
+    });
+  });
+
+  describe('getQueryType', () => {
+    it('should identify SELECT queries', () => {
+      const { getQueryType } = require('../src/utils');
+      expect(getQueryType('SELECT * FROM users')).toBe('SELECT');
+    });
+
+    it('should identify INSERT queries', () => {
+      const { getQueryType } = require('../src/utils');
+      expect(getQueryType('INSERT INTO users VALUES (1, "test")')).toBe('INSERT');
+    });
+
+    it('should identify UPDATE queries', () => {
+      const { getQueryType } = require('../src/utils');
+      expect(getQueryType('UPDATE users SET name = "test"')).toBe('UPDATE');
+    });
+
+    it('should identify DELETE queries', () => {
+      const { getQueryType } = require('../src/utils');
+      expect(getQueryType('DELETE FROM users WHERE id = 1')).toBe('DELETE');
+    });
+
+    it('should identify COMMIT queries', () => {
+      const { getQueryType } = require('../src/utils');
+      expect(getQueryType('COMMIT')).toBe('COMMIT');
+    });
+
+    it('should identify CREATE queries', () => {
+      const { getQueryType } = require('../src/utils');
+      expect(getQueryType('CREATE TABLE users (id INT)')).toBe('CREATE');
+    });
+
+    it('should return OTHER for unknown queries', () => {
+      const { getQueryType } = require('../src/utils');
+      expect(getQueryType('EXPLAIN SELECT * FROM users')).toBe('OTHER');
+    });
+
+    it('should handle empty queries', () => {
+      const { getQueryType } = require('../src/utils');
+      expect(getQueryType('')).toBe('OTHER');
+    });
+
+    it('should handle lowercase queries', () => {
+      const { getQueryType } = require('../src/utils');
+      expect(getQueryType('select * from users')).toBe('SELECT');
+    });
+  });
 });
