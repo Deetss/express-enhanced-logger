@@ -1,3 +1,15 @@
+# [2.0.0](https://github.com/Deetss/express-enhanced-logger/compare/v1.0.0...v2.0.0) (2025-11-17)
+
+
+### Features
+
+* add semantic-release for automated versioning and CI/CD ([7ad0db2](https://github.com/Deetss/express-enhanced-logger/commit/7ad0db211806fcb1b3b7ee7f86c427ac1e0881e5))
+
+
+### BREAKING CHANGES
+
+* Removed manual release scripts (release:patch, release:minor, etc.)
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
