@@ -26,11 +26,14 @@ export const createSqlFormatter = (config: LoggerConfig) => {
       }
 
       const paramArray = Array.isArray(parsedParams) ? parsedParams : [];
-      return replaceParamsInQuery(query, paramArray, {
+      const formattedQuery = replaceParamsInQuery(query, paramArray, {
         truncateForLog,
         enableColors,
         maxStringLength,
       });
+
+      // Only truncate if the query has large parameter lists (IN clauses, etc.)
+      return smartTruncateQuery(formattedQuery, enableColors);
     } catch {
       // Silently return original query if formatting fails
       return query;
@@ -198,3 +201,70 @@ function formatArrayForSql(arr: JsonValue[], enableColors: boolean): string {
   const dimFn = enableColors ? chalk.dim : (text: string) => text;
   return `${firstItems.join(',')}${dimFn(`,...${arr.length - MAX_INLINE_ITEMS} more...`)},${lastItems.join(',')}`;
 }
+
+/**
+ * Smart truncation that only truncates queries with large parameter lists
+ */
+function smartTruncateQuery(query: string, enableColors: boolean): string {
+  const PARAM_THRESHOLD = 10; // Only truncate if there are many consecutive parameters
+
+  // Check if query has large parameter lists (IN clauses with many items)
+  // Look for patterns like: IN (val1,val2,val3,...) or IN (@P1,@P2,@P3,...)
+  const inClausePattern = /IN\s*\([^)]+\)/gi;
+  const matches = query.match(inClausePattern);
+
+  if (!matches) {
+    // No IN clauses, return as-is
+    return query;
+  }
+
+  // Check if any IN clause has many parameters
+  let hasLargeInClause = false;
+  for (const match of matches) {
+    // Count commas to estimate number of parameters
+    const commaCount = (match.match(/,/g) || []).length;
+    if (commaCount >= PARAM_THRESHOLD - 1) {
+      hasLargeInClause = true;
+      break;
+    }
+  }
+
+  if (!hasLargeInClause) {
+    // No large IN clauses, return as-is
+    return query;
+  }
+
+  // Truncate the query intelligently
+  // Find the first IN clause and show query up to that point + truncated IN clause
+  const firstInMatch = query.match(/IN\s*\(/i);
+  if (!firstInMatch || firstInMatch.index === undefined) {
+    return query;
+  }
+
+  const beforeIn = query.substring(0, firstInMatch.index + firstInMatch[0].length);
+  const afterIn = query.substring(firstInMatch.index + firstInMatch[0].length);
+
+  // Extract the parameters from the IN clause
+  const closingParenIndex = afterIn.indexOf(')');
+  if (closingParenIndex === -1) {
+    return query;
+  }
+
+  const inParams = afterIn.substring(0, closingParenIndex);
+  const afterInClause = afterIn.substring(closingParenIndex);
+
+  // Split parameters and show first few and last few
+  const params = inParams.split(',').map((p) => p.trim());
+  if (params.length <= PARAM_THRESHOLD) {
+    return query;
+  }
+
+  const showCount = 3;
+  const firstParams = params.slice(0, showCount).join(',');
+  const lastParams = params.slice(-showCount).join(',');
+  const dimFn = enableColors ? chalk.dim : (text: string) => text;
+  const truncatedIn = `${firstParams}${dimFn(`,...${params.length - showCount * 2} more...`)},${lastParams}`;
+
+  return `${beforeIn}${truncatedIn}${afterInClause}`;
+}
+

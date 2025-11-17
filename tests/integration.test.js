@@ -53,6 +53,7 @@ describe('Simple Logging Feature Integration Tests', () => {
     child.on('close', (code) => {
       if (testCompleted) return;
       testCompleted = true;
+      clearTimeout(timeoutHandle);
 
       // Clean up
       try {
@@ -86,7 +87,7 @@ describe('Simple Logging Feature Integration Tests', () => {
     });
 
     // Set timeout for the test
-    const timeout = setTimeout(() => {
+    const timeoutHandle = setTimeout(() => {
       if (testCompleted) return;
       testCompleted = true;
 
