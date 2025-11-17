@@ -1,3 +1,10 @@
+# [2.5.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.4.1...v2.5.0) (2025-11-17)
+
+
+### Features
+
+* add Rails-style logging support and dual module system for enhanced logger ([8c5df6f](https://github.com/Deetss/express-enhanced-logger/commit/8c5df6fe9499288fc59ad440788ade59f18bc840))
+
 ## [2.4.1](https://github.com/Deetss/express-enhanced-logger/compare/v2.4.0...v2.4.1) (2025-11-17)
 
 
