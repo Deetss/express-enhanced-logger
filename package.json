@@ -19,16 +19,10 @@
     "test": "jest --forceExit",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage --forceExit",
-    "release:patch": "npm run build && npm version patch && npm publish",
-    "release:minor": "npm run build && npm version minor && npm publish",
-    "release:major": "npm run build && npm version major && npm publish",
-    "release:beta": "npm run build && npm version prerelease --preid=beta && npm publish --tag beta",
-    "release:alpha": "npm run build && npm version prerelease --preid=alpha && npm publish --tag alpha",
-    "version:check": "npm version --no-git-tag-version",
-    "changelog": "echo 'Generating changelog...' && git log --oneline --decorate --graph",
-    "preversion": "npm run build && npm test",
-    "version": "npm run build",
-    "postversion": "git push && git push --tags"
+    "semantic-release": "semantic-release",
+    "semantic-release:dry-run": "semantic-release --dry-run",
+    "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
+    "preversion": "npm run build && npm test"
   },
   "keywords": [
     "express",
@@ -43,12 +37,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/dylandietz/express-enhanced-logger.git"
+    "url": "https://github.com/Deetss/express-enhanced-logger.git"
   },
   "bugs": {
-    "url": "https://github.com/dylandietz/express-enhanced-logger/issues"
+    "url": "https://github.com/Deetss/express-enhanced-logger/issues"
   },
-  "homepage": "https://github.com/dylandietz/express-enhanced-logger#readme",
+  "homepage": "https://github.com/Deetss/express-enhanced-logger#readme",
   "peerDependencies": {
     "express": "^4.0.0 || ^5.0.0"
   },
@@ -58,11 +52,18 @@
     "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^11.0.6",
+    "@semantic-release/npm": "^12.0.2",
+    "@semantic-release/release-notes-generator": "^14.1.0",
     "@types/express": "^4.17.21",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.5.5",
     "conventional-changelog-cli": "^4.1.0",
     "jest": "^30.2.0",
+    "semantic-release": "^24.2.9",
     "standard-version": "^9.5.0",
     "ts-jest": "^29.4.5",
     "typescript": "^5.5.4"
@@ -77,8 +78,12 @@
   },
   "jest": {
     "testEnvironment": "node",
-    "roots": ["<rootDir>/tests"],
-    "testMatch": ["**/*.test.js"],
+    "roots": [
+      "<rootDir>/tests"
+    ],
+    "testMatch": [
+      "**/*.test.js"
+    ],
     "collectCoverageFrom": [
       "dist/**/*.js",
       "!dist/**/*.d.ts"

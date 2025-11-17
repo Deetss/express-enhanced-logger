@@ -1,26 +1,25 @@
-name: Release
+name: CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [main, beta, alpha]
   pull_request:
     branches: [main]
 
 jobs:
   test:
+    name: Test
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
     
     strategy:
       matrix:
         node-version: [18.x, 20.x, 22.x]
     
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
     
-    - name: Use Node.js ${{ matrix.node-version }}
+    - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
@@ -34,19 +33,38 @@ jobs:
     
     - name: Run tests
       run: npm test
+    
+    - name: Generate coverage
+      if: matrix.node-version == '20.x'
+      run: npm run test:coverage
+    
+    - name: Upload coverage to GitHub
+      if: matrix.node-version == '20.x'
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage
+        path: coverage/
 
   release:
+    name: Release
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+    
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Use Node.js
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '20.x'
@@ -59,55 +77,11 @@ jobs:
     - name: Build
       run: npm run build
     
-    - name: Check if version changed
-      id: check
-      run: |
-        git config user.name github-actions
-        git config user.email github-actions@github.com
-        
-        # Get the current version from package.json
-        CURRENT_VERSION=$(node -p "require('./package.json').version")
-        
-        # Check if this version exists as a git tag
-        if git rev-parse "v$CURRENT_VERSION" >/dev/null 2>&1; then
-          echo "Version v$CURRENT_VERSION already exists, skipping release"
-          echo "should_release=false" >> $GITHUB_OUTPUT
-        else
-          echo "New version v$CURRENT_VERSION detected"
-          echo "should_release=true" >> $GITHUB_OUTPUT
-          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-        fi
+    - name: Verify build artifacts
+      run: ls -la dist/
     
-    - name: Create Release
-      if: steps.check.outputs.should_release == 'true'
-      run: |
-        # Create git tag
-        git tag "v${{ steps.check.outputs.version }}"
-        git push origin "v${{ steps.check.outputs.version }}"
-    
-    - name: Publish to npm
-      if: steps.check.outputs.should_release == 'true'
-      run: npm publish
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-    
-    - name: Create GitHub Release
-      if: steps.check.outputs.should_release == 'true'
-      uses: actions/create-release@v1
+    - name: Release
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: v${{ steps.check.outputs.version }}
-        release_name: Release v${{ steps.check.outputs.version }}
-        body: |
-          ## Changes in v${{ steps.check.outputs.version }}
-          
-          See [CHANGELOG.md](https://github.com/dylandietz/express-enhanced-logger/blob/main/CHANGELOG.md) for details.
-          
-          ## Installation
-          
-          ```bash
-          npm install express-enhanced-logger@${{ steps.check.outputs.version }}
-          ```
-        draft: false
-        prerelease: false
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: npx semantic-release
