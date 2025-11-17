@@ -1,4 +1,14 @@
-# express-enhanced-logger
+# express## ✨ Features
+
+- 🚀 **Performance Monitoring** - Track slow requests, memory usage, and response times
+- 🔍 **Smart SQL Formatting** - Intelligent truncation for large IN clauses with parameter substitution
+- 🗄️ **Prisma Integration** - Plug-and-play Prisma logging with one line of code
+- 🎨 **Colored Output** - Beautiful, readable console logs with syntax highlighting
+- 📁 **File Logging** - Automatic log rotation with configurable retention
+- ⚙️ **Highly Configurable** - Extensive customization options for any use case
+- 🔧 **TypeScript First** - Full type definitions and interfaces included
+- ✅ **Well Tested** - 81% test coverage with 134 passing tests
+- 🪶 **Lightweight** - Minimal dependencies (winston, chalk, winston-daily-rotate-file)logger
 
 [![npm version](https://img.shields.io/npm/v/express-enhanced-logger.svg)](https://www.npmjs.com/package/express-enhanced-logger)
 [![Test Coverage](https://img.shields.io/badge/coverage-81%25-brightgreen.svg)](https://github.com/Deetss/express-enhanced-logger)
@@ -60,6 +70,29 @@ app.listen(3000, () => {
 });
 ```
 
+### Prisma Integration (One-Line Setup!)
+
+```typescript
+import { PrismaClient } from '@prisma/client';
+import { setupPrismaLogging } from 'express-enhanced-logger';
+
+const prismaClient = new PrismaClient({
+  log: [
+    { emit: 'event', level: 'query' },
+    { emit: 'event', level: 'info' },
+    { emit: 'event', level: 'warn' },
+    { emit: 'event', level: 'error' }
+  ]
+});
+
+// That's it! Automatic logging for all Prisma events
+setupPrismaLogging(prismaClient);
+
+export default prismaClient;
+```
+
+> 🎯 **See the [Prisma Integration](#prisma-integration-sql-query-logging) section below for detailed usage and examples.**
+
 ### With Custom Configuration
 
 ```typescript
@@ -70,8 +103,8 @@ const logger = createLogger({
   enableFileLogging: true,
   logsDirectory: 'my-logs',
   slowRequestThreshold: 500, // Log requests slower than 500ms
+  slowQueryThreshold: 1000, // Log slow Prisma queries
   enableColors: true,
-  enablePrismaIntegration: true, // Enable SQL query logging
   maxArrayLength: 10, // Truncate arrays longer than 10 items
 });
 
@@ -110,6 +143,9 @@ interface LoggerConfig {
 
   /** Slow request threshold in milliseconds (default: 1000) */
   slowRequestThreshold?: number;
+
+  /** Slow query threshold in milliseconds for Prisma queries (default: 1000) */
+  slowQueryThreshold?: number;
 
   /** Memory warning threshold in bytes (default: 100MB) */
   memoryWarningThreshold?: number;
@@ -235,6 +271,75 @@ app.use(
 The logger includes smart SQL formatting that efficiently truncates large queries, particularly IN clauses with many parameters.
 
 **⚠️ IMPORTANT:** Prisma integration is **incompatible with `simpleLogging: true`**. Make sure to set `simpleLogging: false` (or omit it, as false is the default) when using `logger.query()`.
+
+#### Plug-and-Play Setup (Recommended)
+
+The easiest way to integrate Prisma logging is using the `setupPrismaLogging()` function:
+
+```typescript
+import { PrismaClient } from '@prisma/client';
+import { createLogger, setupPrismaLogging } from 'express-enhanced-logger';
+
+// Create logger with Prisma integration
+const logger = createLogger({
+  level: 'query', // Enable query-level logging
+  slowQueryThreshold: 1000, // Log queries slower than 1 second as warnings
+});
+
+// Create Prisma client with event logging
+const prismaClient = new PrismaClient({
+  log: [
+    { emit: 'event', level: 'query' },
+    { emit: 'event', level: 'info' },
+    { emit: 'event', level: 'warn' },
+    { emit: 'event', level: 'error' }
+  ]
+});
+
+// Setup Prisma logging - automatically configures all event handlers
+setupPrismaLogging(prismaClient);
+
+// That's it! All Prisma events are now logged through the enhanced logger
+export default prismaClient;
+```
+
+The `setupPrismaLogging()` function automatically:
+
+- Enables Prisma integration
+- Sets up event handlers for `query`, `info`, `warn`, and `error` events
+- Formats and logs queries with smart truncation
+- Highlights slow queries based on `slowQueryThreshold`
+- Only activates in non-test environments
+
+#### Using with Custom Logger Instance
+
+If you're using a custom logger instance:
+
+```typescript
+import { EnhancedLogger } from 'express-enhanced-logger';
+import { PrismaClient } from '@prisma/client';
+
+const logger = new EnhancedLogger({
+  level: 'query',
+  slowQueryThreshold: 500, // Custom threshold
+});
+
+const prismaClient = new PrismaClient({
+  log: [
+    { emit: 'event', level: 'query' },
+    { emit: 'event', level: 'info' },
+    { emit: 'event', level: 'warn' },
+    { emit: 'event', level: 'error' }
+  ]
+});
+
+// Setup logging on the custom instance
+logger.setupPrismaLogging(prismaClient);
+```
+
+#### Manual Setup (Advanced)
+
+If you need more control, you can manually setup the event handlers:
 
 ```typescript
 import { createLogger } from 'express-enhanced-logger';

@@ -35,6 +35,7 @@ export const DEFAULT_CONFIG: Required<Omit<LoggerConfig, 'customLogFormat'>> & {
   maxFiles: '7d',
   zippedArchive: true,
   slowRequestThreshold: 1000,
+  slowQueryThreshold: 1000,
   memoryWarningThreshold: 1024 * 1024 * 100, // 100MB
   maxArrayLength: 5,
   maxStringLength: 100,
@@ -223,3 +224,34 @@ export const removeUndefinedDeep = (obj: unknown): unknown => {
   }
   return obj;
 };
+
+// Prisma helper functions
+export function getQueryType(
+  query: string
+): 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'COMMIT' | 'CREATE' | 'OTHER' {
+  const type = query.split(' ')[0]?.toUpperCase() || 'OTHER';
+  return ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'COMMIT', 'CREATE'].includes(type)
+    ? (type as 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'COMMIT' | 'CREATE')
+    : 'OTHER';
+}
+
+export function formatParams(params: unknown): string {
+  try {
+    // If params is already a string, check if it's valid JSON
+    if (typeof params === 'string') {
+      try {
+        // Try to parse and re-stringify to ensure valid JSON
+        JSON.parse(params);
+        return params;
+      } catch {
+        // If it's not valid JSON, wrap it in quotes
+        return JSON.stringify(params);
+      }
+    }
+    return JSON.stringify(params, null, 2);
+  } catch (error) {
+    console.warn('Error formatting params for logging:', error);
+    // Fallback: convert to string safely
+    return String(params);
+  }
+}

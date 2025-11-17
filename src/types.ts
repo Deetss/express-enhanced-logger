@@ -51,6 +51,9 @@ export interface LoggerConfig {
   /** Enable Prisma-specific features like SQL query formatting */
   enablePrismaIntegration?: boolean;
 
+  /** Slow query threshold in milliseconds for Prisma queries (default: 1000) */
+  slowQueryThreshold?: number;
+
   /** Enable simple logging mode - shows only the message without level or formatting (default: false) */
   simpleLogging?: boolean;
 
@@ -95,6 +98,30 @@ export interface RequestLogData {
   userEmail?: string;
   context?: Record<string, unknown>;
   headers?: Record<string, string | undefined>;
+}
+
+// Prisma Client types for integration
+export interface PrismaQueryEvent {
+  timestamp: Date;
+  query: string;
+  params: string;
+  duration: number;
+  target: string;
+}
+
+export interface PrismaLogEvent {
+  timestamp: Date;
+  message: string;
+  target: string;
+}
+
+export type PrismaLogLevel = 'query' | 'info' | 'warn' | 'error';
+
+export interface PrismaClientLike {
+  $on: <T extends PrismaLogLevel>(
+    eventType: T,
+    callback: (event: T extends 'query' ? PrismaQueryEvent : PrismaLogEvent) => void
+  ) => void;
 }
 
 // Extend Express Request type
