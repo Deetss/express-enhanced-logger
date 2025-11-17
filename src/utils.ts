@@ -5,8 +5,8 @@ type ChalkFunction = (text: string) => string;
 import { LoggerConfig } from './types.js';
 
 // Default configuration
-export const DEFAULT_CONFIG: Required<LoggerConfig> = {
-  level: 'info',
+export const DEFAULT_CONFIG: Required<Omit<LoggerConfig, 'customLogFormat'>> & { customLogFormat?: (info: any) => string } = {
+  level: 'info' as const,
   enableFileLogging: true,
   logsDirectory: 'logs',
   maxFileSize: '20m',
@@ -20,10 +20,11 @@ export const DEFAULT_CONFIG: Required<LoggerConfig> = {
   enableColors: process.env.NODE_ENV !== 'production',
   enableSqlFormatting: true,
   enablePrismaIntegration: false,
+  simpleLogging: false,
   customQueryFormatter: (query: string, _params: string) => query,
-  getUserFromRequest: (req) => req.currentUser,
-  getRequestId: (req) => req.requestId,
-  customLogFormat: (info: any) => JSON.stringify(info),
+  getUserFromRequest: (req: any) => req.currentUser,
+  getRequestId: (req: any) => req.requestId,
+  customLogFormat: undefined,  // Use the default format instead of JSON
   additionalMetadata: () => ({})
 };
 

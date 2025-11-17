@@ -43,6 +43,9 @@ export interface LoggerConfig {
   /** Enable Prisma-specific features like SQL query formatting */
   enablePrismaIntegration?: boolean;
   
+  /** Enable simple logging mode - shows only the message without level or formatting (default: false) */
+  simpleLogging?: boolean;
+  
   /** Custom query formatter function for SQL queries */
   customQueryFormatter?: (query: string, params: string) => string;
   
