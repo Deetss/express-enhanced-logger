@@ -1,5 +1,6 @@
 import { inspect } from 'util';
 import chalk from 'chalk';
+import { Request } from 'express';
 
 type ChalkFunction = (text: string) => string;
 import { LoggerConfig, WinstonLogInfo } from './types.js';
@@ -10,21 +11,23 @@ export const LEVEL_EMOJIS = {
   warn: '⚠️ ',
   info: 'ℹ️ ',
   debug: '🔍',
-  query: '🛢️ '
+  query: '🛢️ ',
 } as const;
 
 export const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'] as const;
-export type HttpMethod = typeof HTTP_METHODS[number];
+export type HttpMethod = (typeof HTTP_METHODS)[number];
 
 export const STATUS_CODE_RANGES = {
   SERVER_ERROR: 500,
   CLIENT_ERROR: 400,
   REDIRECT: 300,
-  SUCCESS: 200
+  SUCCESS: 200,
 } as const;
 
 // Default configuration
-export const DEFAULT_CONFIG: Required<Omit<LoggerConfig, 'customLogFormat'>> & { customLogFormat?: (info: WinstonLogInfo) => string } = {
+export const DEFAULT_CONFIG: Required<Omit<LoggerConfig, 'customLogFormat'>> & {
+  customLogFormat?: (info: WinstonLogInfo) => string;
+} = {
   level: 'info' as const,
   enableFileLogging: true,
   logsDirectory: 'logs',
@@ -41,10 +44,10 @@ export const DEFAULT_CONFIG: Required<Omit<LoggerConfig, 'customLogFormat'>> & {
   enablePrismaIntegration: false,
   simpleLogging: false,
   customQueryFormatter: (query: string, _params: string) => query,
-  getUserFromRequest: (req: any) => req.currentUser,
-  getRequestId: (req: any) => req.requestId,
-  customLogFormat: undefined,  // Use the default format instead of JSON
-  additionalMetadata: () => ({})
+  getUserFromRequest: (req: Request) => req.currentUser,
+  getRequestId: (req: Request) => req.requestId,
+  customLogFormat: undefined, // Use the default format instead of JSON
+  additionalMetadata: () => ({}),
 };
 
 // Helper function to truncate values for logging
@@ -55,27 +58,23 @@ export const createTruncateForLog = (config: LoggerConfig) => {
 
   const truncateForLog = (value: unknown, depth = 0): unknown => {
     if (depth > 3) return '[Nested Object]';
-    
+
     if (Array.isArray(value)) {
       if (value.length <= maxArrayLength) {
-        return value.map(item => truncateForLog(item, depth + 1));
+        return value.map((item) => truncateForLog(item, depth + 1));
       }
-      
+
       const itemsToShow = Math.floor(maxArrayLength / 2);
-      const firstItems = value.slice(0, itemsToShow).map(item => truncateForLog(item, depth + 1));
-      const lastItems = value.slice(-itemsToShow).map(item => truncateForLog(item, depth + 1));
-      
-      return [
-        ...firstItems,
-        `[...${value.length - maxArrayLength} more items...]`,
-        ...lastItems
-      ];
+      const firstItems = value.slice(0, itemsToShow).map((item) => truncateForLog(item, depth + 1));
+      const lastItems = value.slice(-itemsToShow).map((item) => truncateForLog(item, depth + 1));
+
+      return [...firstItems, `[...${value.length - maxArrayLength} more items...]`, ...lastItems];
     }
-    
+
     if (typeof value === 'string' && value.length > maxStringLength) {
       return value.substring(0, maxStringLength) + '...';
     }
-    
+
     if (value !== null && typeof value === 'object') {
       const keys = Object.keys(value);
       if (keys.length <= maxObjectKeys) {
@@ -83,22 +82,21 @@ export const createTruncateForLog = (config: LoggerConfig) => {
           Object.entries(value).map(([k, v]) => [k, truncateForLog(v, depth + 1)])
         );
       }
-      
+
       const keysToShow = Math.floor(maxObjectKeys / 2);
       const firstEntries = Object.entries(value).slice(0, keysToShow);
       const lastEntries = Object.entries(value).slice(-keysToShow);
-      
-      const truncatedObj = Object.fromEntries([
-        ...firstEntries,
-        ...lastEntries
-      ].map(([k, v]) => [k, truncateForLog(v, depth + 1)]));
-      
+
+      const truncatedObj = Object.fromEntries(
+        [...firstEntries, ...lastEntries].map(([k, v]) => [k, truncateForLog(v, depth + 1)])
+      );
+
       return {
         ...truncatedObj,
-        __truncated: `[...${keys.length - maxObjectKeys} more properties...]`
+        __truncated: `[...${keys.length - maxObjectKeys} more properties...]`,
       };
     }
-    
+
     return value;
   };
 
@@ -107,49 +105,49 @@ export const createTruncateForLog = (config: LoggerConfig) => {
 
 export const getDurationColor = (duration: string, enableColors: boolean): ChalkFunction => {
   if (!enableColors) return (text: string) => text;
-  
-  return Number(duration) > 1000
-    ? chalk.red
-    : Number(duration) > 500
-      ? chalk.yellow
-      : chalk.green;
+
+  return Number(duration) > 1000 ? chalk.red : Number(duration) > 500 ? chalk.yellow : chalk.green;
 };
 
 export const getStatusColor = (status: number, enableColors: boolean): ChalkFunction => {
   if (!enableColors) return (text: string) => text;
-  
-  return status >= STATUS_CODE_RANGES.SERVER_ERROR ? chalk.red :
-         status >= STATUS_CODE_RANGES.CLIENT_ERROR ? chalk.yellow :
-         status >= STATUS_CODE_RANGES.REDIRECT ? chalk.cyan :
-         status >= STATUS_CODE_RANGES.SUCCESS ? chalk.green :
-         chalk.blue;
+
+  return status >= STATUS_CODE_RANGES.SERVER_ERROR
+    ? chalk.red
+    : status >= STATUS_CODE_RANGES.CLIENT_ERROR
+      ? chalk.yellow
+      : status >= STATUS_CODE_RANGES.REDIRECT
+        ? chalk.cyan
+        : status >= STATUS_CODE_RANGES.SUCCESS
+          ? chalk.green
+          : chalk.blue;
 };
 
 export const getLevelColor = (level: string, enableColors: boolean): ChalkFunction => {
   if (!enableColors) return (text: string) => text;
-  
+
   const levelColors = {
     error: chalk.red,
     warn: chalk.yellow,
     info: chalk.blue,
     debug: chalk.gray,
-    query: chalk.cyan
+    query: chalk.cyan,
   };
-  
+
   return levelColors[level as keyof typeof levelColors] || ((text: string) => text);
 };
 
 export const getMethodColor = (method: string, enableColors: boolean): string => {
   if (!enableColors) return method.padEnd(6);
-  
+
   const methodColors: Record<string, ChalkFunction> = {
     GET: chalk.green,
     POST: chalk.yellow,
     PUT: chalk.blue,
     DELETE: chalk.red,
-    PATCH: chalk.magenta
+    PATCH: chalk.magenta,
   };
-  
+
   const colorFn = methodColors[method] || chalk.white;
   return colorFn(method.padEnd(6));
 };
@@ -165,7 +163,7 @@ export const formatLogMessage = ({
   message,
   statusColor,
   durationColor,
-  enableColors = true
+  enableColors = true,
 }: {
   timestamp: string;
   levelEmoji: string;
@@ -195,7 +193,7 @@ export const formatLogMessage = ({
     coloredMethod,
     cyanFn(url),
     status ? statusColor(`${status} ${statusText}`) : null,
-    durationColor(`${duration}ms`)
+    durationColor(`${duration}ms`),
   ].filter((part) => part !== null && part !== undefined);
 
   if (message.requestId) {

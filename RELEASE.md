@@ -5,21 +5,25 @@ This document outlines the release process for `express-enhanced-logger` package
 ## 📋 Quick Release Commands
 
 ### Patch Release (Bug fixes: 1.0.0 → 1.0.1)
+
 ```bash
 npm run release:patch
 ```
 
 ### Minor Release (New features: 1.0.0 → 1.1.0)
+
 ```bash
 npm run release:minor
 ```
 
 ### Major Release (Breaking changes: 1.0.0 → 2.0.0)
+
 ```bash
 npm run release:major
 ```
 
 ### Pre-release Versions
+
 ```bash
 # Beta version (1.0.0 → 1.0.1-beta.0)
 npm run release:beta
@@ -38,10 +42,10 @@ We follow [Semantic Versioning (SemVer)](https://semver.org/):
 
 ### Examples:
 
-| Change Type | Version | Example |
-|-------------|---------|---------|
-| Bug fix | `1.0.0` → `1.0.1` | Fix SQL query formatting issue |
-| New feature | `1.0.0` → `1.1.0` | Add new configuration option |
+| Change Type     | Version           | Example                            |
+| --------------- | ----------------- | ---------------------------------- |
+| Bug fix         | `1.0.0` → `1.0.1` | Fix SQL query formatting issue     |
+| New feature     | `1.0.0` → `1.1.0` | Add new configuration option       |
 | Breaking change | `1.0.0` → `2.0.0` | Change required function signature |
 
 ## 📝 Release Process
@@ -81,6 +85,7 @@ npm run release:patch
 If you need more control over the release:
 
 ### Step 1: Update Version
+
 ```bash
 # Check current version
 npm version --no-git-tag-version
@@ -92,11 +97,13 @@ npm version major --no-git-tag-version  # 1.0.0 → 2.0.0
 ```
 
 ### Step 2: Update Changelog
+
 ```bash
 # Add entry to CHANGELOG.md (see format below)
 ```
 
 ### Step 3: Commit and Tag
+
 ```bash
 git add .
 git commit -m "chore: release v$(node -p "require('./package.json').version")"
@@ -104,12 +111,14 @@ git tag "v$(node -p "require('./package.json').version")"
 ```
 
 ### Step 4: Build and Publish
+
 ```bash
 npm run build
 npm publish
 ```
 
 ### Step 5: Push Changes
+
 ```bash
 git push origin main
 git push origin --tags
@@ -130,35 +139,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - New features that have been added
 
 ### Changed
+
 - Changes in existing functionality
 
 ### Deprecated
+
 - Soon-to-be removed features
 
 ### Removed
+
 - Features that have been removed
 
 ### Fixed
+
 - Bug fixes
 
 ### Security
+
 - Vulnerability fixes
 
 ## [1.1.0] - 2025-11-16
 
 ### Added
+
 - New configuration option for custom log formatting
 - Support for multiple logger instances
 
 ### Fixed
+
 - Memory leak in log truncation function
 
 ## [1.0.0] - 2025-11-16
 
 ### Added
+
 - Initial release
 - Express middleware for request logging
 - Prisma SQL query formatting
@@ -171,12 +189,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 For fully automated releases, we have GitHub Actions set up:
 
 ### Automatic Patch Releases
+
 Push to `main` branch with commit message starting with `fix:` triggers patch release.
 
-### Automatic Minor Releases  
+### Automatic Minor Releases
+
 Push to `main` branch with commit message starting with `feat:` triggers minor release.
 
 ### Manual Major Releases
+
 Use the GitHub UI to create a release with tag `v2.0.0` etc.
 
 ## 🔧 Troubleshooting
@@ -184,18 +205,22 @@ Use the GitHub UI to create a release with tag `v2.0.0` etc.
 ### Common Issues
 
 **"npm ERR! 403 Forbidden"**
+
 - Make sure you're logged in: `npm login`
 - Check if you have publish rights to the package
 
 **"Version already exists"**
+
 - Check current version: `npm view express-enhanced-logger version`
 - Bump version appropriately
 
 **"Git working directory not clean"**
+
 - Commit or stash changes before releasing
 - Use `git status` to check
 
 **"Tests failed"**
+
 - Fix failing tests before releasing
 - Run `npm test` to verify
 
@@ -243,6 +268,7 @@ Track your releases:
 ## 📞 Support
 
 If you need help with releases:
+
 1. Check this documentation
 2. Look at previous releases on GitHub
 3. Check npm package page for published versions

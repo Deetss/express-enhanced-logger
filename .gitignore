@@ -57,4 +57,15 @@ pids/
 .npm
 
 # Optional eslint cache
+# Optional eslint cache
 .eslintcache
+
+# Prettier cache
+.prettiercache
+
+# Test artifacts
+tests/temp-test.mjs
+*.test.mjs
+
+# Semantic release
+.semantic-release/

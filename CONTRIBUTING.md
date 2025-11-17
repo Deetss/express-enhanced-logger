@@ -39,15 +39,15 @@ express-enhanced-logger/
 
 ## 🛠️ Development Scripts
 
-| Script | Description |
-|--------|-------------|
-| `npm run build` | Compile TypeScript to JavaScript |
-| `npm run dev` | Watch mode - recompile on file changes |
-| `npm run clean` | Remove dist/ folder |
-| `npm test` | Run tests (when implemented) |
-| `npm run release:patch` | Release patch version |
-| `npm run release:minor` | Release minor version |
-| `npm run release:major` | Release major version |
+| Script                  | Description                            |
+| ----------------------- | -------------------------------------- |
+| `npm run build`         | Compile TypeScript to JavaScript       |
+| `npm run dev`           | Watch mode - recompile on file changes |
+| `npm run clean`         | Remove dist/ folder                    |
+| `npm test`              | Run tests (when implemented)           |
+| `npm run release:patch` | Release patch version                  |
+| `npm run release:minor` | Release minor version                  |
+| `npm run release:major` | Release major version                  |
 
 ## 🧪 Testing
 
@@ -70,18 +70,21 @@ npm run test:coverage
 ## 🔧 Code Standards
 
 ### TypeScript
+
 - Use strict TypeScript configuration
 - Provide comprehensive type definitions
 - Export interfaces for public APIs
 - Use proper JSDoc comments for public methods
 
 ### Coding Style
+
 - Use meaningful variable and function names
 - Keep functions small and focused
 - Prefer composition over inheritance
 - Handle errors gracefully with proper logging
 
 ### Commit Messages
+
 Follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```
@@ -95,6 +98,7 @@ breaking: change required function signature
 ## 📦 Publishing Workflow
 
 ### 1. Development
+
 ```bash
 # Make changes
 git add .
@@ -106,6 +110,7 @@ npm test
 ```
 
 ### 2. Version Bump
+
 ```bash
 # For patch (bug fixes)
 npm version patch
@@ -113,11 +118,12 @@ npm version patch
 # For minor (new features)
 npm version minor
 
-# For major (breaking changes) 
+# For major (breaking changes)
 npm version major
 ```
 
 ### 3. Release
+
 ```bash
 # Manual release
 npm run release:patch
@@ -153,6 +159,7 @@ git push origin main
 ## 🐛 Debugging
 
 ### Local Development
+
 ```bash
 # Link package locally for testing
 npm link
@@ -170,6 +177,7 @@ npm unlink express-enhanced-logger
 ### Common Issues
 
 **TypeScript Errors**
+
 ```bash
 # Check TypeScript compilation
 npx tsc --noEmit
@@ -179,6 +187,7 @@ npx tsc --noEmit src/logger.ts
 ```
 
 **Build Issues**
+
 ```bash
 # Clean and rebuild
 npm run clean
@@ -186,6 +195,7 @@ npm run build
 ```
 
 **Import Issues**
+
 - Check `dist/index.d.ts` for proper type exports
 - Verify `package.json` exports field
 - Ensure all dependencies are listed correctly
@@ -193,12 +203,15 @@ npm run build
 ## 📊 Performance Monitoring
 
 ### Bundle Size
+
 Keep the package lightweight:
+
 - Monitor `dist/` folder size
 - Use dynamic imports for optional features
 - Minimize dependencies
 
 ### Memory Usage
+
 - Test with large log volumes
 - Monitor for memory leaks in truncation functions
 - Profile performance with realistic data
@@ -206,6 +219,7 @@ Keep the package lightweight:
 ## 🔐 Security
 
 ### Dependency Security
+
 ```bash
 # Check for vulnerabilities
 npm audit
@@ -218,6 +232,7 @@ npm update
 ```
 
 ### Code Security
+
 - Sanitize all log inputs
 - Avoid logging sensitive information
 - Implement proper error handling

@@ -61,11 +61,13 @@ const logger = createLogger({
   enablePrismaIntegration: true, // Enable SQL query formatting
 });
 
-app.use(requestLogger({
-  enablePrismaIntegration: true,
-  getUserFromRequest: (req) => req.user, // Custom user extraction
-  getRequestId: (req) => req.headers['x-request-id'] as string,
-}));
+app.use(
+  requestLogger({
+    enablePrismaIntegration: true,
+    getUserFromRequest: (req) => req.user, // Custom user extraction
+    getRequestId: (req) => req.headers['x-request-id'] as string,
+  })
+);
 ```
 
 ## Configuration Options
@@ -76,61 +78,63 @@ app.use(requestLogger({
 interface LoggerConfig {
   /** Log level (default: 'info') */
   level?: 'error' | 'warn' | 'info' | 'debug' | 'query';
-  
+
   /** Enable file logging (default: true) */
   enableFileLogging?: boolean;
-  
+
   /** Directory for log files (default: 'logs') */
   logsDirectory?: string;
-  
+
   /** Maximum file size before rotation (default: '20m') */
   maxFileSize?: string;
-  
+
   /** Number of days to keep log files (default: '7d') */
   maxFiles?: string;
-  
+
   /** Enable gzip compression of rotated logs (default: true) */
   zippedArchive?: boolean;
-  
+
   /** Slow request threshold in milliseconds (default: 1000) */
   slowRequestThreshold?: number;
-  
+
   /** Memory warning threshold in bytes (default: 100MB) */
   memoryWarningThreshold?: number;
-  
+
   /** Maximum array length to show in logs before truncating (default: 5) */
   maxArrayLength?: number;
-  
+
   /** Maximum string length to show in logs before truncating (default: 100) */
   maxStringLength?: number;
-  
+
   /** Maximum object keys to show in logs before truncating (default: 20) */
   maxObjectKeys?: number;
-  
+
   /** Enable colored console output (default: true in development) */
   enableColors?: boolean;
-  
+
   /** Enable simple logging mode - shows only the message without level or formatting (default: false) */
   simpleLogging?: boolean;
-  
+
   /** Enable SQL query formatting (requires enablePrismaIntegration: true) */
   enableSqlFormatting?: boolean;
-  
+
   /** Enable Prisma-specific features like SQL query formatting */
   enablePrismaIntegration?: boolean;
-  
+
   /** Custom query formatter function for SQL queries */
   customQueryFormatter?: (query: string, params: string) => string;
-  
+
   /** Function to extract user information from request */
-  getUserFromRequest?: (req: Request) => { email?: string; id?: string; [key: string]: unknown } | undefined;
-  
+  getUserFromRequest?: (
+    req: Request
+  ) => { email?: string; id?: string; [key: string]: unknown } | undefined;
+
   /** Function to extract request ID from request */
   getRequestId?: (req: Request) => string | undefined;
-  
+
   /** Custom log format function */
   customLogFormat?: (info: any) => string;
-  
+
   /** Additional metadata to include in logs */
   additionalMetadata?: (req: Request, res: Response) => Record<string, unknown>;
 }
@@ -161,13 +165,13 @@ import { createLogger } from 'express-enhanced-logger';
 // Enable simple logging mode
 const logger = createLogger({ simpleLogging: true });
 
-logger.info('Just the message');           // Output: Just the message
-logger.warn('A warning message');          // Output: A warning message  
+logger.info('Just the message'); // Output: Just the message
+logger.warn('A warning message'); // Output: A warning message
 logger.error({ code: 500, msg: 'Error' }); // Output: { code: 500, msg: 'Error' }
 
 // Compare with normal logging:
 const normalLogger = createLogger({ simpleLogging: false });
-normalLogger.info('With formatting');      // Output: 2025-11-16 17:52:15 ℹ️ info: With formatting
+normalLogger.info('With formatting'); // Output: 2025-11-16 17:52:15 ℹ️ info: With formatting
 ```
 
 ### Request Logging Middleware
@@ -182,14 +186,16 @@ const app = express();
 app.use(requestLogger());
 
 // With custom configuration
-app.use(requestLogger({
-  slowRequestThreshold: 500,
-  getUserFromRequest: (req) => req.currentUser,
-  additionalMetadata: (req, res) => ({
-    tenantId: req.headers['x-tenant-id'],
-    apiVersion: req.headers['api-version']
+app.use(
+  requestLogger({
+    slowRequestThreshold: 500,
+    getUserFromRequest: (req) => req.currentUser,
+    additionalMetadata: (req, res) => ({
+      tenantId: req.headers['x-tenant-id'],
+      apiVersion: req.headers['api-version'],
+    }),
   })
-}));
+);
 ```
 
 ### Prisma Integration (SQL Query Logging)
@@ -200,7 +206,7 @@ import { createLogger } from 'express-enhanced-logger';
 const logger = createLogger({
   enablePrismaIntegration: true,
   enableSqlFormatting: true,
-  level: 'query' // This will show SQL queries
+  level: 'query', // This will show SQL queries
 });
 
 // In your Prisma setup
@@ -220,7 +226,7 @@ prisma.$on('query', (e) => {
     type: 'SELECT', // or 'INSERT', 'UPDATE', 'DELETE'
     query: e.query,
     params: JSON.stringify(e.params),
-    duration: `${e.duration}ms`
+    duration: `${e.duration}ms`,
   });
 });
 ```
@@ -229,17 +235,19 @@ prisma.$on('query', (e) => {
 
 ```typescript
 // If you have custom user authentication
-app.use(requestLogger({
-  getUserFromRequest: (req) => {
-    // Extract from JWT token
-    if (req.headers.authorization) {
-      const token = req.headers.authorization.replace('Bearer ', '');
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      return { email: decoded.email, id: decoded.userId };
-    }
-    return undefined;
-  }
-}));
+app.use(
+  requestLogger({
+    getUserFromRequest: (req) => {
+      // Extract from JWT token
+      if (req.headers.authorization) {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        return { email: decoded.email, id: decoded.userId };
+      }
+      return undefined;
+    },
+  })
+);
 ```
 
 ### Multiple Logger Instances
@@ -251,13 +259,13 @@ import { EnhancedLogger } from 'express-enhanced-logger';
 const authLogger = new EnhancedLogger({
   level: 'debug',
   logsDirectory: 'logs/auth',
-  additionalMetadata: (req, res) => ({ module: 'auth' })
+  additionalMetadata: (req, res) => ({ module: 'auth' }),
 });
 
 const apiLogger = new EnhancedLogger({
   level: 'info',
   logsDirectory: 'logs/api',
-  slowRequestThreshold: 2000
+  slowRequestThreshold: 2000,
 });
 
 // Use different loggers for different routes
@@ -272,7 +280,7 @@ const logger = createLogger({
   customLogFormat: (info) => {
     const { timestamp, level, message } = info;
     return `[${timestamp}] ${level.toUpperCase()}: ${JSON.stringify(message)}`;
-  }
+  },
 });
 ```
 
@@ -288,7 +296,7 @@ The logger automatically tracks:
 ```typescript
 // Configure performance thresholds
 const logger = createLogger({
-  slowRequestThreshold: 1000,      // 1 second
+  slowRequestThreshold: 1000, // 1 second
   memoryWarningThreshold: 50 * 1024 * 1024, // 50MB
 });
 ```
@@ -296,7 +304,8 @@ const logger = createLogger({
 ## Sample Output
 
 ### HTTP Request Log
-```
+
+```text
 2024-01-15 10:30:45 ℹ️  GET    /api/users/123 200 OK 245ms
 ├ RequestID: req_abc123
 ├ Body: { "includeProfile": true }
@@ -304,12 +313,14 @@ const logger = createLogger({
 ```
 
 ### SQL Query Log (with Prisma)
-```
+
+```sql
 2024-01-15 10:30:45 🛢️  SELECT * FROM users WHERE id = '123' AND status = 'ACTIVE' 45ms
 ```
 
 ### Error Log
-```
+
+```json
 2024-01-15 10:30:45 ❌ error: {
   "requestId": "req_abc123",
   "error": "User not found",
@@ -342,7 +353,7 @@ declare module 'express' {
 
 Logs are automatically rotated and organized:
 
-```
+```text
 logs/
 ├── combined-2024-01-15.log     # All logs
 ├── error-2024-01-15.log        # Error logs only
