@@ -83,12 +83,9 @@ jobs:
     - name: Verify build artifacts
       run: ls -la dist/
     
-    - name: Semantic Release (versioning, changelog, GitHub release)
+    - name: Semantic Release (versioning, changelog, GitHub release, and npm publish)
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        NPM_CONFIG_PROVENANCE: true
       run: npx semantic-release
-    
-    - name: Publish to npm with provenance
-      run: npm publish --provenance --access public
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
