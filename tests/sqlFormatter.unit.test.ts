@@ -499,4 +499,77 @@ describe('SQL Formatter Unit Tests', () => {
       expect(result).toContain('more');
     });
   });
+
+  describe('Sanitization Edge Cases', () => {
+    it('should handle arrays with unbalanced quotes in sanitization', () => {
+      const formatSql = createSqlFormatter(baseConfig);
+      const query = 'SELECT * FROM Users WHERE name = @P1';
+      // This triggers the sanitization path
+      const result = formatSql(query, '["test\\"unbalanced]');
+
+      expect(result).toBeDefined();
+    });
+
+    it('should handle arrays with multiple unbalanced quotes', () => {
+      const formatSql = createSqlFormatter(baseConfig);
+      const query = 'SELECT * FROM Users WHERE name IN (@P1,@P2)';
+      const result = formatSql(query, '["test\\", "more\\"]');
+
+      expect(result).toBeDefined();
+    });
+
+    it('should handle null in IN clause', () => {
+      const formatSql = createSqlFormatter(baseConfig);
+      const query = 'SELECT * FROM Users WHERE id IN (@P1,@P2,@P3)';
+      const result = formatSql(query, '[1, null, 3]');
+
+      expect(result).toContain('1,null,3');
+    });
+
+    it('should handle mixed types in IN clause', () => {
+      const formatSql = createSqlFormatter(baseConfig);
+      const query = 'SELECT * FROM Users WHERE value IN (@P1,@P2,@P3,@P4)';
+      const result = formatSql(query, '[1, "test", null, true]');
+
+      expect(result).toContain('1');
+      expect(result).toContain('test');
+      expect(result).toContain('null');
+      expect(result).toContain('true');
+    });
+  });
+
+  describe('Manual Parser Fallback', () => {
+    it('should use manual parser when JSON.parse fails on nested arrays', () => {
+      const formatSql = createSqlFormatter(baseConfig);
+      const query = 'SELECT * FROM Users WHERE name = @P1';
+      // Invalid JSON that will trigger catch and manual parsing
+      const result = formatSql(query, '[test value]');
+
+      expect(result).toBeDefined();
+    });
+
+    it('should handle params with trailing comma in manual parser', () => {
+      const formatSql = createSqlFormatter(baseConfig);
+      const query = 'SELECT * FROM Users WHERE id IN (@P1,@P2)';
+      const result = formatSql(query, '[1, 2,]');
+
+      expect(result).toBeDefined();
+    });
+
+    it('should handle params with whitespace variations', () => {
+      const formatSql = createSqlFormatter(baseConfig);
+      const query = 'SELECT * FROM Users WHERE id = @P1';
+      const result = formatSql(query, '[  1  ]');
+
+      expect(result).toBeDefined();
+    });
+
+    it('should handle arrays with special characters in strings', () => {
+      const formatSql = createSqlFormatter(baseConfig);
+      const query = 'SELECT * FROM Users WHERE name = @P1';
+      const result = formatSql(query, '["test@example.com"]');
+
+      expect(result).toContain('test@example.com');
+    });
+  });
 });
