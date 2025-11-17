@@ -1,6 +1,6 @@
 {
   "name": "express-enhanced-logger",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "An enhanced Express.js logger with performance monitoring, SQL query formatting, and customizable features",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
