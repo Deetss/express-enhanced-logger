@@ -45,7 +45,7 @@ export function requestLogger(config?: LoggerConfig) {
  * @param message Error message or object
  * @param meta Optional metadata
  */
-export function error(message: any, meta?: any) {
+export function error(message: string | Record<string, unknown>, meta?: Record<string, unknown>) {
   getLogger().error(message, meta);
 }
 
@@ -54,7 +54,7 @@ export function error(message: any, meta?: any) {
  * @param message Warning message or object
  * @param meta Optional metadata
  */
-export function warn(message: any, meta?: any) {
+export function warn(message: string | Record<string, unknown>, meta?: Record<string, unknown>) {
   getLogger().warn(message, meta);
 }
 
@@ -63,7 +63,7 @@ export function warn(message: any, meta?: any) {
  * @param message Info message or object
  * @param meta Optional metadata
  */
-export function info(message: any, meta?: any) {
+export function info(message: string | Record<string, unknown>, meta?: Record<string, unknown>) {
   getLogger().info(message, meta);
 }
 
@@ -72,7 +72,7 @@ export function info(message: any, meta?: any) {
  * @param message Debug message or object
  * @param meta Optional metadata
  */
-export function debug(message: any, meta?: any) {
+export function debug(message: string | Record<string, unknown>, meta?: Record<string, unknown>) {
   getLogger().debug(message, meta);
 }
 
