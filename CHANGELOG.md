@@ -1,3 +1,19 @@
+# [2.3.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.2.0...v2.3.0) (2025-11-17)
+
+
+### Bug Fixes
+
+* remove NPM_TOKEN requirement and update repository URL in release configuration ([5b86be3](https://github.com/Deetss/express-enhanced-logger/commit/5b86be33649b0953de18443b18c4d00956bd4061))
+* remove unused NPM_TOKEN from semantic release step ([211a93c](https://github.com/Deetss/express-enhanced-logger/commit/211a93ccda6ea2d69747b17ee7de18a0ac05de73))
+* update Node.js version in CI/CD workflow to 22.x ([d4ef8d3](https://github.com/Deetss/express-enhanced-logger/commit/d4ef8d3e687fa45c2cba029d1d665647bf1b0bf8))
+* update Node.js version in CI/CD workflow to 23.x ([8f0d9ef](https://github.com/Deetss/express-enhanced-logger/commit/8f0d9ef1e55c65058b89fdfb176ed6397f6cba50))
+
+
+### Features
+
+* enable npm provenance in release configuration and remove unused registry URL ([785a2d8](https://github.com/Deetss/express-enhanced-logger/commit/785a2d86c147024a7c46e61a36407fc59a951364))
+* enhance semantic release workflow to include npm publish and provenance ([ab0b598](https://github.com/Deetss/express-enhanced-logger/commit/ab0b59855148af0439563ac5c6b05a81c97b6c1b))
+
 # [2.2.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.1.0...v2.2.0) (2025-11-17)
 
 
