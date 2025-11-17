@@ -2,9 +2,9 @@ name: CI/CD
 
 on:
   push:
-    branches: [main, beta, alpha]
+    branches: ['**']  # Run on all branches
   pull_request:
-    branches: [main]
+    branches: ['**']  # Run on all PRs
 
 jobs:
   test:
@@ -46,7 +46,7 @@ jobs:
         path: coverage/
 
   release:
-    name: Release
+    name: Release & Publish
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -80,7 +80,7 @@ jobs:
     - name: Verify build artifacts
       run: ls -la dist/
     
-    - name: Release
+    - name: Release & Publish to npm
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
