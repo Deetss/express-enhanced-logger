@@ -52,10 +52,10 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-      id-token: write
+      contents: write      # Required for semantic-release to create releases
+      issues: write        # Required for semantic-release to comment on issues
+      pull-requests: write # Required for semantic-release to comment on PRs
+      id-token: write      # Required for npm provenance (OIDC authentication)
     
     steps:
     - name: Checkout
@@ -70,6 +70,9 @@ jobs:
         node-version: '20.x'
         cache: 'npm'
         registry-url: 'https://registry.npmjs.org'
+    
+    - name: Update npm to latest version
+      run: npm install -g npm@latest
     
     - name: Install dependencies
       run: npm ci
