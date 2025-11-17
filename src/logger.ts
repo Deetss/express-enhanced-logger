@@ -13,7 +13,7 @@ import { createSqlFormatter } from './sqlFormatter.js';
 
 export class EnhancedLogger {
   private logger: winston.Logger;
-  private config: Required<LoggerConfig>;
+  private config: Required<Omit<LoggerConfig, 'customLogFormat'>> & { customLogFormat?: (info: any) => string };
   private truncateForLog: (value: unknown, depth?: number) => unknown;
   private formatSqlQuery: (query: string, params: string) => string;
 
@@ -95,6 +95,13 @@ export class EnhancedLogger {
     return format.combine(
       format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
       format.printf((info: winston.Logform.TransformableInfo) => {
+        // Simple logging mode - just return the message
+        if (this.config.simpleLogging) {
+          const { message } = info as { message: any };
+          return typeof message === 'object' 
+            ? inspect(message, { colors: this.config.enableColors, depth: 5 })
+            : String(message);
+        }
         const { level, message, timestamp, ...meta } = info as {
           level: string;
           message: any;

@@ -110,6 +110,9 @@ interface LoggerConfig {
   /** Enable colored console output (default: true in development) */
   enableColors?: boolean;
   
+  /** Enable simple logging mode - shows only the message without level or formatting (default: false) */
+  simpleLogging?: boolean;
+  
   /** Enable SQL query formatting (requires enablePrismaIntegration: true) */
   enableSqlFormatting?: boolean;
   
@@ -146,6 +149,25 @@ logger.info('Application started');
 logger.warn('This is a warning');
 logger.error('An error occurred', { errorCode: 'USER_NOT_FOUND' });
 logger.debug('Debug information', { userId: 123 });
+```
+
+### Simple Logging Mode
+
+For cleaner output without timestamps, log levels, or formatting:
+
+```typescript
+import { createLogger } from 'express-enhanced-logger';
+
+// Enable simple logging mode
+const logger = createLogger({ simpleLogging: true });
+
+logger.info('Just the message');           // Output: Just the message
+logger.warn('A warning message');          // Output: A warning message  
+logger.error({ code: 500, msg: 'Error' }); // Output: { code: 500, msg: 'Error' }
+
+// Compare with normal logging:
+const normalLogger = createLogger({ simpleLogging: false });
+normalLogger.info('With formatting');      // Output: 2025-11-16 17:52:15 ℹ️ info: With formatting
 ```
 
 ### Request Logging Middleware
