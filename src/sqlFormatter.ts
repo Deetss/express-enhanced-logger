@@ -14,15 +14,16 @@ export const createSqlFormatter = (config: LoggerConfig) => {
       return config.customQueryFormatter?.(query, params) ?? query;
     }
 
-    // Handle empty or undefined params
+    // Handle empty or undefined params - still truncate the query if needed
     if (!params || params.trim() === '') {
-      return query;
+      return smartTruncateQuery(query, enableColors);
     }
 
     try {
       const parsedParams = parseQueryParams(params);
       if (!parsedParams) {
-        return query;
+        // If params can't be parsed, still truncate the original query
+        return smartTruncateQuery(query, enableColors);
       }
 
       const paramArray = Array.isArray(parsedParams) ? parsedParams : [];
@@ -35,8 +36,8 @@ export const createSqlFormatter = (config: LoggerConfig) => {
       // Only truncate if the query has large parameter lists (IN clauses, etc.)
       return smartTruncateQuery(formattedQuery, enableColors);
     } catch {
-      // Silently return original query if formatting fails
-      return query;
+      // Silently return truncated original query if formatting fails
+      return smartTruncateQuery(query, enableColors);
     }
   };
 

@@ -132,13 +132,6 @@ export class EnhancedLogger {
           return typeof msg === 'object' && msg !== null && 'method' in msg && 'url' in msg;
         };
 
-        // Type guard for SQL query logs
-        const isQueryLog = (
-          msg: unknown
-        ): msg is { type: string; query: string; params: string; duration: string } => {
-          return typeof msg === 'object' && msg !== null && 'query' in msg && 'params' in msg;
-        };
-
         // Handle HTTP request logs
         if (isHttpLog(message)) {
           const { method, url, status, statusText, duration } = message;
@@ -166,9 +159,10 @@ export class EnhancedLogger {
             enableColors: this.config.enableColors,
           });
         }
-        // Handle SQL query logs
-        else if (isQueryLog(message) && level === 'query' && this.config.enablePrismaIntegration) {
-          const { type, query, params, duration } = message;
+        // Handle SQL query logs - Winston spreads data directly on info, not in message
+        if (level === 'query' && this.config.enablePrismaIntegration && 'query' in info && 'type' in info) {
+          const queryInfo = info as unknown as { type: string; query: string; params?: string; duration: string; timestamp: string };
+          const { type, query, params = '', duration } = queryInfo;
           const formattedQuery = this.formatSqlQuery(query, params);
           const durationColor = getDurationColor(
             duration.replace('ms', ''),
@@ -177,46 +171,26 @@ export class EnhancedLogger {
 
           const typeColors = this.config.enableColors
             ? {
-                SELECT: chalk.cyan(formattedQuery),
-                INSERT: chalk.green(formattedQuery),
-                CREATE: chalk.green(formattedQuery),
-                UPDATE: chalk.yellow(formattedQuery),
-                DELETE: chalk.red(formattedQuery),
+                SELECT: chalk.cyan,
+                INSERT: chalk.green,
+                CREATE: chalk.green,
+                UPDATE: chalk.yellow,
+                DELETE: chalk.red,
               }
             : {
-                SELECT: formattedQuery,
-                INSERT: formattedQuery,
-                CREATE: formattedQuery,
-                UPDATE: formattedQuery,
-                DELETE: formattedQuery,
+                SELECT: (text: string) => text,
+                INSERT: (text: string) => text,
+                CREATE: (text: string) => text,
+                UPDATE: (text: string) => text,
+                DELETE: (text: string) => text,
               };
 
-          const coloredQuery =
-            typeColors[type as keyof typeof typeColors] ||
-            (formattedQuery.startsWith('DECLARE @generated_keys table([id] BIGINT)')
-              ? this.config.enableColors
-                ? chalk.green(formattedQuery)
-                : formattedQuery
-              : this.config.enableColors
-                ? chalk.white(formattedQuery)
-                : formattedQuery);
+          const colorFn = typeColors[type as keyof typeof typeColors] || 
+            (this.config.enableColors ? chalk.white : (text: string) => text);
 
-          const statusColor = this.config.enableColors ? chalk.dim : (text: string) => text;
-
-          return formatLogMessage({
-            timestamp,
-            levelEmoji,
-            url: coloredQuery,
-            statusText: '',
-            duration: duration.replace('ms', ''),
-            message: {
-              ...(message as Record<string, unknown>),
-              query: undefined,
-            } as { requestId?: string; userEmail?: string; query?: string; body?: unknown },
-            statusColor,
-            durationColor,
-            enableColors: this.config.enableColors,
-          });
+          const grayFn = this.config.enableColors ? chalk.gray : (text: string) => text;
+          
+          return `${grayFn(timestamp)} ${levelEmoji} ${colorFn(type)}: ${formattedQuery} ${durationColor(`(${duration})`)}`;
         }
 
         // Handle regular logs
