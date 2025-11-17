@@ -1,3 +1,10 @@
+## [2.4.1](https://github.com/Deetss/express-enhanced-logger/compare/v2.4.0...v2.4.1) (2025-11-17)
+
+
+### Bug Fixes
+
+* truncate query and params in slow query logging for better readability ([88c44a8](https://github.com/Deetss/express-enhanced-logger/commit/88c44a8735936e7eb93a56dfe8788a5607344982))
+
 # [2.4.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.3.2...v2.4.0) (2025-11-17)
 
 
