@@ -1,3 +1,10 @@
+# [2.4.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.3.2...v2.4.0) (2025-11-17)
+
+
+### Features
+
+* add Prisma integration with logging setup and enhance logger configuration ([25b8e23](https://github.com/Deetss/express-enhanced-logger/commit/25b8e239c52add32a4503bea2866de58824b241f))
+
 ## [2.3.2](https://github.com/Deetss/express-enhanced-logger/compare/v2.3.1...v2.3.2) (2025-11-17)
 
 
