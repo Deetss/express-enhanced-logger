@@ -1,3 +1,10 @@
+# [2.1.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.0.0...v2.1.0) (2025-11-17)
+
+
+### Features
+
+* Enhance project structure and tooling ([f7493da](https://github.com/Deetss/express-enhanced-logger/commit/f7493daee1b3ddfb7320cce5df6976488daadd95))
+
 # [2.0.0](https://github.com/Deetss/express-enhanced-logger/compare/v1.0.0...v2.0.0) (2025-11-17)
 
 ### Features
