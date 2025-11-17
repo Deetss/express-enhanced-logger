@@ -10,6 +10,7 @@
       "prerelease": true
     }
   ],
+  "repositoryUrl": "https://github.com/Deetss/express-enhanced-logger",
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
