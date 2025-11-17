@@ -86,4 +86,5 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         NPM_CONFIG_PROVENANCE: true
+        # No NPM_TOKEN needed - using OIDC trusted publishing
       run: npx semantic-release
