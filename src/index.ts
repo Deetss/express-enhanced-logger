@@ -6,6 +6,9 @@ import { DEFAULT_CONFIG } from './utils.js';
 export { EnhancedLogger };
 export type { LoggerConfig, QueryLogData, RequestLogData, PrismaClientLike };
 
+// Export controller helpers for Rails-style organization
+export { controllerAction, createController, BaseController } from './controllerHelpers.js';
+
 // Create a default logger instance
 let defaultLogger: EnhancedLogger | null = null;
 

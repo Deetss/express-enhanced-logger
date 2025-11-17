@@ -57,6 +57,9 @@ export interface LoggerConfig {
   /** Enable simple logging mode - shows only the message without level or formatting (default: false) */
   simpleLogging?: boolean;
 
+  /** Logging style: 'rails' for Rails-style logs (default), 'enhanced' for the original enhanced format */
+  loggingStyle?: 'rails' | 'enhanced';
+
   /** Custom query formatter function for SQL queries */
   customQueryFormatter?: (query: string, params: string) => string;
 
@@ -133,5 +136,12 @@ declare module 'express' {
       id?: string | number;
       [key: string]: unknown;
     };
+  }
+  
+  interface Route {
+    /** Optional controller name for Rails-style logging */
+    controller?: string;
+    /** Optional action name for Rails-style logging */
+    action?: string;
   }
 }

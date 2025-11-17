@@ -43,6 +43,20 @@ pnpm add express-enhanced-logger
 - Node.js >= 18.0.0
 - Express.js >= 4.0.0 or >= 5.0.0 (peer dependency)
 
+**Module System Support:**
+
+This library supports **both ES modules and CommonJS**:
+
+```javascript
+// ES modules (import)
+import { EnhancedLogger } from 'express-enhanced-logger';
+
+// CommonJS (require)
+const { EnhancedLogger } = require('express-enhanced-logger');
+```
+
+> 📖 See [DUAL_MODULE_SUPPORT.md](DUAL_MODULE_SUPPORT.md) for detailed information about module compatibility.
+
 ## 🚀 Quick Start
 
 ### Basic Usage
