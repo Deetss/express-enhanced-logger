@@ -1,4 +1,4 @@
-# express## ✨ Features
+# express-enhanced-logger ✨ Features
 
 - 🚀 **Performance Monitoring** - Track slow requests, memory usage, and response times
 - 🔍 **Smart SQL Formatting** - Intelligent truncation for large IN clauses with parameter substitution
