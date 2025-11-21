@@ -1,3 +1,15 @@
+# [2.7.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.6.1...v2.7.0) (2025-11-21)
+
+
+### Bug Fixes
+
+* downgrade chalk to version 4.1.2 for compatibility ([29b5b63](https://github.com/Deetss/express-enhanced-logger/commit/29b5b63d96db992473f47918372863e15936be4a))
+
+
+### Features
+
+* add caller location logging for SQL queries with Rails-style indicator ([ffb8d93](https://github.com/Deetss/express-enhanced-logger/commit/ffb8d9396f3e1e7953ac6da2a1d37fe4caf9196e))
+
 ## [2.6.1](https://github.com/Deetss/express-enhanced-logger/compare/v2.6.0...v2.6.1) (2025-11-21)
 
 
