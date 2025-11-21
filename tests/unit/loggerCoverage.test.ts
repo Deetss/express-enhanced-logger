@@ -243,8 +243,17 @@ describe('Logger Coverage Tests', () => {
     });
 
     it('should log slow requests in json mode', () => {
-        const nowSpy = jest.spyOn(performance, 'now');
-        nowSpy.mockReturnValueOnce(1000).mockReturnValueOnce(1200); // 200ms diff
+        // Mock performance.now using Object.defineProperty to support Node.js 18
+        const originalNow = performance.now.bind(performance);
+        let callCount = 0;
+        Object.defineProperty(performance, 'now', {
+            configurable: true,
+            writable: true,
+            value: jest.fn(() => {
+                callCount++;
+                return callCount === 1 ? 1000 : 1200; // 200ms diff
+            })
+        });
 
         logger = new EnhancedLogger({
           enableFileLogging: false,
@@ -277,7 +286,12 @@ describe('Logger Coverage Tests', () => {
             message: expect.stringContaining('Slow request detected')
         }));
 
-        nowSpy.mockRestore();
+        // Restore original performance.now
+        Object.defineProperty(performance, 'now', {
+            configurable: true,
+            writable: true,
+            value: originalNow
+        });
     });
   });
 });
