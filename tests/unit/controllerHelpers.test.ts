@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { controllerAction, createController, BaseController } from '../src/controllerHelpers';
+import { controllerAction, createController, BaseController } from '../../src/controllerHelpers';
 
 describe('Controller Helpers Unit Tests', () => {
   // Mock Express objects
