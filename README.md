@@ -1,7 +1,7 @@
 # express-enhanced-logger
 
 [![npm version](https://img.shields.io/npm/v/express-enhanced-logger.svg)](https://www.npmjs.com/package/express-enhanced-logger)
-[![Test Coverage](https://img.shields.io/badge/coverage-86%25-brightgreen.svg)](https://github.com/Deetss/express-enhanced-logger)
+[![Test Coverage](https://img.shields.io/badge/coverage-99%25-brightgreen.svg)](https://github.com/Deetss/express-enhanced-logger)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -16,7 +16,7 @@ An enhanced Express.js logger with performance monitoring, SQL query formatting,
 - 📁 **File Logging** - Automatic log rotation with configurable retention
 - ⚙️ **Highly Configurable** - Extensive customization options for any use case
 - 🔧 **TypeScript First** - Full type definitions and interfaces included
-- ✅ **Well Tested** - 86% test coverage with 201 passing tests
+- ✅ **Well Tested** - 99% test coverage with 214 passing tests
 - 🪶 **Lightweight** - Minimal dependencies (winston, chalk, winston-daily-rotate-file)
 
 ## 📦 Installation
@@ -168,7 +168,9 @@ interface LoggerConfig {
   customQueryFormatter?: (query: string, params: string) => string;
 
   /** Function to extract user information from request */
-  getUserFromRequest?: (req: Request) => string | { email?: string; id?: string; [key: string]: unknown } | undefined;
+  getUserFromRequest?: (
+    req: Request
+  ) => { email?: string; id?: string | number; [key: string]: unknown } | undefined;
 
   /** Function to extract request ID from request */
   getRequestId?: (req: Request) => string | undefined;
@@ -386,6 +388,7 @@ SELECT * FROM lots WHERE id IN (@P1,@P2,@P3,...530 more...,@P534,@P535,@P536)
 - **Configuration warning on startup**: The logger will warn you if you have incompatible settings enabled.
 
 ### Custom User Extraction
+
 ```typescript
 import jwt from 'jsonwebtoken';
 
@@ -397,8 +400,7 @@ const logger = createLogger({
       try {
         const token = req.headers.authorization.replace('Bearer ', '');
         const decoded = jwt.verify(token, process.env.JWT_SECRET) as any;
-        return decoded.email; // Return string
-        // OR return object: { email: decoded.email, id: decoded.userId }
+        return { email: decoded.email, id: decoded.userId };
       } catch {
         return undefined;
       }
@@ -549,9 +551,9 @@ The package extends Express types for better TypeScript support:
 declare module 'express' {
   interface Request {
     requestId?: string;
-    currentUser?: string | {
+    currentUser?: {
       email?: string;
-      id?: string;
+      id?: string | number;
       [key: string]: unknown;
     };
   }
@@ -837,7 +839,7 @@ npm run lint
 npm run format
 ```
 
-**Current Test Coverage:** 86% (201 passing tests)
+**Current Test Coverage:** 99% (214 passing tests)
 
 ## 📄 License
 
