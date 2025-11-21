@@ -13,6 +13,7 @@ import {
   createTruncateForLog,
   getQueryType,
   formatParams,
+  getCallerLocation,
 } from './utils.js';
 import { createSqlFormatter } from './sqlFormatter.js';
 
@@ -123,8 +124,8 @@ export class EnhancedLogger {
 
         // Handle SQL query logs - Winston spreads data directly on info, not in message
         if (level === 'query' && 'query' in info && 'type' in info) {
-          const queryInfo = info as unknown as { type: string; query: string; params?: string; duration: string; timestamp: string };
-          const { query, params = '', duration, type } = queryInfo;
+          const queryInfo = info as unknown as { type: string; query: string; params?: string; duration: string; timestamp: string; caller?: string };
+          const { query, params = '', duration, type, caller } = queryInfo;
           
           // Determine query type for color coding
           const queryType = type.toUpperCase();
@@ -212,7 +213,7 @@ export class EnhancedLogger {
           if (this.config.enableColors) {
             switch (queryType) {
               case 'SELECT':
-                logLine = chalk.blue(logLine);
+                logLine = chalk.cyan(logLine);  // Light blue for all SELECT queries
                 break;
               case 'UPDATE':
                 logLine = chalk.yellow(logLine);
@@ -232,6 +233,12 @@ export class EnhancedLogger {
                 break;
               // Default: keep syntax highlighting from formatSqlQuery
             }
+          }
+          
+          // Add caller location if available (Rails-style ↳ indicator)
+          if (caller) {
+            const callerLine = this.config.enableColors ? chalk.dim(`  ${caller}`) : `  ${caller}`;
+            logLine += `\n${callerLine}`;
           }
           
           return logLine;
@@ -406,6 +413,9 @@ export class EnhancedLogger {
       const queryType = getQueryType(e.query);
       const formattedParams = formatParams(e.params);
       const duration = Number(e.duration);
+      
+      // Capture caller location
+      const caller = getCallerLocation();
 
       if (duration > this.config.slowQueryThreshold) {
         // Truncate both query and params for slow queries
@@ -414,6 +424,9 @@ export class EnhancedLogger {
         
         // Rails-style slow query logging
         this.warn(`  ${queryType} (${duration}ms)  ${truncatedQuery}  ${truncatedParams}`);
+        if (caller) {
+          this.warn(`  ${caller}`);
+        }
         this.warn(`  Slow query detected`);
       } else {
         // Use logger.query() with proper QueryLogData format for Rails-style formatting
@@ -422,6 +435,7 @@ export class EnhancedLogger {
           query: e.query,
           params: formattedParams,
           duration: `${duration}ms`,
+          caller, // Add caller location
         });
       }
     });

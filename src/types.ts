@@ -74,6 +74,8 @@ export interface QueryLogData {
   query: string;
   params: string;
   duration: string;
+  /** Optional caller location (Rails-style ↳ indicator) */
+  caller?: string;
 }
 
 export interface RequestLogData {

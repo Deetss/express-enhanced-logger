@@ -8,10 +8,6 @@ export const createSqlFormatter = (config: LoggerConfig) => {
   const truncateForLog = createTruncateForLog(config);
   const enableColors = config.enableColors ?? true;
   const maxStringLength = config.maxStringLength ?? 100;
-  
-  // For chalk v4: Just use the default instance when colors enabled
-  // When disabled, we'll just pass through without coloring
-  const chalkInstance = chalk;
 
   const formatSqlQuery = (query: string, params: string): string => {
     // If custom formatter is provided, use it
