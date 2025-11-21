@@ -253,3 +253,80 @@ export function formatParams(params: unknown): string {
     return String(params);
   }
 }
+
+/**
+ * Get caller location from stack trace (Rails-style ↳ indicator)
+ * Returns formatted location like "↳ app/controllers/users.ts:42:in `getUser`"
+ */
+export function getCallerLocation(): string {
+  const oldLimit = Error.stackTraceLimit;
+  Error.stackTraceLimit = 50; // Capture enough frames
+  
+  const stack = new Error().stack || '';
+  Error.stackTraceLimit = oldLimit;
+  
+  const lines = stack.split('\n');
+  
+  // Start from frame 1 (skip "Error" line)
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+    
+    if (!line) continue;
+    
+    // Skip internal frames we want to ignore
+    if (
+      line.includes('node_modules') ||
+      line.includes('node:internal') ||
+      line.includes('node:diagnostics_channel') ||
+      line.includes('node:async_hooks') ||
+      line.includes('/dist/') ||         // Our compiled library code
+      line.includes('logger.cjs') ||
+      line.includes('logger.js') ||
+      line.includes('utils.cjs') ||
+      line.includes('utils.js') ||
+      line.includes('sqlFormatter') ||
+      line.includes('EnhancedLogger') ||
+      line.includes('setupPrismaLogging') ||
+      line.includes('getCallerLocation') ||
+      line.includes('winston') ||
+      line.includes('prisma/client') ||
+      line.includes('prisma-client') ||
+      line.includes('@prisma') ||
+      line.includes('TracingChannel') ||
+      line.includes('Module._compile') ||
+      line.includes('Module.load') ||
+      line.includes('Function._load') ||
+      line.includes('_triggerQuery') ||  // Mock Prisma trigger
+      line.includes('.$on(') ||           // Prisma event registration
+      line.includes('PrismaClient')       // Prisma client internals
+    ) {
+      continue;
+    }
+    
+    // Try to extract file location
+    // Format: "    at functionName (file:line:column)" or "    at file:line:column"
+    const match = line.match(/at\s+(?:([^\s]+)\s+\()?([^)]+):(\d+):(\d+)\)?/);
+    
+    if (match) {
+      const functionName = match[1] || 'anonymous';
+      let filePath = match[2] || '';
+      const lineNum = match[3];
+      
+      if (!filePath) continue;
+      
+      // Clean up file path - remove file:// protocol
+      filePath = filePath.replace('file://', '');
+      
+      // Try to make it relative to current working directory
+      const cwd = process.cwd();
+      if (filePath.startsWith(cwd)) {
+        filePath = filePath.substring(cwd.length + 1);
+      }
+      
+      // Format like Rails: ↳ path/to/file.ts:line:in `function`
+      return `↳ ${filePath}:${lineNum}:in \`${functionName}\``;
+    }
+  }
+  
+  return ''; // No suitable caller found
+}
