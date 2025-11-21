@@ -6,17 +6,10 @@ import { NextFunction, Request, Response } from 'express';
 import { mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 
-import { LoggerConfig, RequestLogData, QueryLogData, WinstonLogInfo, PrismaClientLike } from './types.js';
+import { LoggerConfig, QueryLogData, WinstonLogInfo, PrismaClientLike } from './types.js';
 import {
   DEFAULT_CONFIG,
   createTruncateForLog,
-  getDurationColor,
-  getStatusColor,
-  getLevelColor,
-  getMethodColor,
-  formatLogMessage,
-  removeUndefinedDeep,
-  LEVEL_EMOJIS,
   getQueryType,
   formatParams,
 } from './utils.js';
@@ -125,74 +118,25 @@ export class EnhancedLogger {
             ? inspect(message, { colors: this.config.enableColors, depth: 5 })
             : String(message);
         }
-        const { level, message, timestamp, ...meta } = info as unknown as WinstonLogInfo;
+        const { level, message } = info as unknown as WinstonLogInfo;
 
-        const levelEmoji = LEVEL_EMOJIS[level as keyof typeof LEVEL_EMOJIS] || '📝';
-
-        // Type guard for HTTP request logs
-        const isHttpLog = (
-          msg: unknown
-        ): msg is {
-          method: string;
-          url: string;
-          status: number;
-          statusText: string;
-          duration: string;
-        } => {
-          return typeof msg === 'object' && msg !== null && 'method' in msg && 'url' in msg;
-        };
-
-        // Handle HTTP request logs
-        if (isHttpLog(message)) {
-          const { method, url, status, statusText, duration } = message;
-          const durationColor = getDurationColor(duration, this.config.enableColors);
-
-          const coloredMethod = getMethodColor(method, this.config.enableColors);
-          const statusColor = getStatusColor(status, this.config.enableColors);
-
-          return formatLogMessage({
-            timestamp,
-            levelEmoji,
-            coloredMethod,
-            url,
-            status,
-            statusText,
-            duration,
-            message: message as {
-              requestId?: string;
-              userEmail?: string;
-              query?: string;
-              body?: unknown;
-            },
-            statusColor,
-            durationColor,
-            enableColors: this.config.enableColors,
-          });
-        }
         // Handle SQL query logs - Winston spreads data directly on info, not in message
         if (level === 'query' && 'query' in info && 'type' in info) {
           const queryInfo = info as unknown as { type: string; query: string; params?: string; duration: string; timestamp: string };
           const { query, params = '', duration } = queryInfo;
           
-          // Rails-style query logging
+          // Rails-style query logging: indented with 2 spaces, duration in parentheses
           const formattedQuery = this.formatSqlQuery(query, params);
           const paramsArray = params ? JSON.parse(params) : [];
           const paramsDisplay = paramsArray.length > 0 ? `  ${JSON.stringify(paramsArray)}` : '';
           
-          return `  (${duration})  ${formattedQuery}${paramsDisplay}`;
+          return `  ${formattedQuery} (${duration})${paramsDisplay}`;
         }
 
-        // Handle regular logs
-        const colorFn = getLevelColor(level, this.config.enableColors);
-        return `${timestamp} ${levelEmoji} ${colorFn(level)}: ${
-          typeof message === 'object'
-            ? inspect(message, { colors: this.config.enableColors, depth: 5 })
-            : message
-        }${
-          Object.keys(meta).length
-            ? `\n${inspect(meta, { colors: this.config.enableColors, depth: 5 })}`
-            : ''
-        }`;
+        // Handle regular logs - simple Rails style without emojis or fancy formatting
+        return typeof message === 'object'
+          ? inspect(message, { colors: this.config.enableColors, depth: 5 })
+          : String(message);
       })
     );
   }
@@ -221,7 +165,6 @@ export class EnhancedLogger {
   // Request logging middleware
   requestLogger = (req: Request, res: Response, next: NextFunction) => {
     const start = performance.now();
-    const startMemory = process.memoryUsage().heapUsed;
 
     // Rails-style: Log request start
     const timestamp = new Date().toLocaleString('en-US', {
@@ -284,9 +227,7 @@ export class EnhancedLogger {
       this.info(`  Parameters: ${inspect(allParams, { depth: 5, compact: true })}`);
     }
 
-    // Extract user and request ID using configured functions with null safety
-    const userResult = this.config.getUserFromRequest ? this.config.getUserFromRequest(req) : undefined;
-    const userEmail = typeof userResult === 'string' ? userResult : userResult?.email;
+    // Extract request ID using configured function with null safety
     const requestId = this.config.getRequestId ? this.config.getRequestId(req) : undefined;
 
     // Preserve request context with safe property access
@@ -313,62 +254,18 @@ export class EnhancedLogger {
       res.off('error', errorHandler);
 
       const duration = performance.now() - start;
-      const memoryUsed = process.memoryUsage().heapUsed - startMemory;
 
-      // Rails-style completion log
-      const statusText = res.statusMessage || '';
+      // Rails-style completion log - simple and clean
+      const statusText = res.statusMessage || 'OK';
       const durationMs = Math.round(duration);
-      this.info(`Completed ${res.statusCode} ${statusText} in ${durationMs}ms`);
-      const routeParams = req?.params && typeof req.params === 'object' ? req.params : {};
-
-      // Truncate large data structures before logging with type guards
-      const truncatedBody =
-        req?.body && typeof req.body === 'object' ? this.truncateForLog(req.body) : undefined;
-      const truncatedQuery =
-        req?.query && typeof req.query === 'object' ? this.truncateForLog(req.query) : undefined;
-      const truncatedParams =
-        Object.keys(routeParams).length > 0 ? this.truncateForLog(routeParams) : undefined;
-
-      // Get additional metadata from config with safe function call
-      const additionalMeta = this.config.additionalMetadata
-        ? this.config.additionalMetadata(req, res)
-        : {};
-
-      const logData: RequestLogData = removeUndefinedDeep({
-        timestamp: new Date().toISOString(),
-        requestId,
-        correlationId: reqContext.correlationId,
-        method: req?.method || 'UNKNOWN',
-        url: req?.url || req?.path || '/',
-        status: res.statusCode || 0,
-        statusText: res.statusMessage || '',
-        duration: Math.round(duration),
-        memoryUsed: Math.round(memoryUsed / 1024 / 1024) + 'MB',
-        query: truncatedQuery,
-        params: truncatedParams,
-        body: truncatedBody,
-        userEmail,
-        context: reqContext,
-        headers: {
-          contentType: res.get?.('Content-Type'),
-          contentLength: res.get?.('Content-Length'),
-        },
-        ...additionalMeta,
-      }) as RequestLogData;
-
-      // Log at different levels based on conditions
+      
+      // Simple Rails format: Completed 200 OK in 88ms
       if (res.statusCode >= 500) {
-        this.error(logData);
+        this.error(`Completed ${res.statusCode} ${statusText} in ${durationMs}ms`);
       } else if (duration > this.config.slowRequestThreshold) {
-        const durationColor = getDurationColor(String(duration), this.config.enableColors);
-        this.warn({
-          ...logData,
-          message: `Slow request detected - ${durationColor(`${duration}ms`)}`,
-        });
-      } else if (memoryUsed > this.config.memoryWarningThreshold) {
-        this.warn({ ...logData, message: 'High memory usage detected' });
+        this.warn(`Completed ${res.statusCode} ${statusText} in ${durationMs}ms (Slow request)`);
       } else {
-        this.info(logData);
+        this.info(`Completed ${res.statusCode} ${statusText} in ${durationMs}ms`);
       }
     };
 
