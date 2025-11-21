@@ -34,13 +34,11 @@ export function getLogger(): EnhancedLogger {
 }
 
 /**
- * Convenience function to get the request logger middleware
- * @param config Optional logger configuration
+ * Convenience function to get the request logger middleware from the default logger
  * @returns Express middleware function
  */
-export function requestLogger(config?: LoggerConfig) {
-  const logger = config ? new EnhancedLogger(config) : getLogger();
-  return logger.requestLogger;
+export function requestLogger() {
+  return getLogger().requestLogger;
 }
 
 /**

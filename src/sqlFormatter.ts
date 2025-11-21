@@ -10,8 +10,9 @@ export const createSqlFormatter = (config: LoggerConfig) => {
   const maxStringLength = config.maxStringLength ?? 100;
 
   const formatSqlQuery = (query: string, params: string): string => {
-    if (!config.enableSqlFormatting || !config.enablePrismaIntegration) {
-      return config.customQueryFormatter?.(query, params) ?? query;
+    // If custom formatter is provided, use it
+    if (config.customQueryFormatter) {
+      return config.customQueryFormatter(query, params);
     }
 
     // Handle empty or undefined params - still truncate the query if needed

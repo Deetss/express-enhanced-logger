@@ -1,7 +1,6 @@
 import winston, { format } from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import { inspect } from 'util';
-import chalk from 'chalk';
 import { performance } from 'perf_hooks';
 import { NextFunction, Request, Response } from 'express';
 import { mkdirSync, existsSync } from 'fs';
@@ -33,6 +32,15 @@ export class EnhancedLogger {
 
   constructor(config: LoggerConfig = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+    
+    // Validate configuration
+    if (this.config.simpleLogging && config.customQueryFormatter) {
+      console.warn(
+        '[express-enhanced-logger] Warning: simpleLogging is enabled, but customQueryFormatter is provided. ' +
+        'SQL query formatting will be disabled in simple logging mode.'
+      );
+    }
+    
     this.truncateForLog = createTruncateForLog(this.config);
     this.formatSqlQuery = createSqlFormatter(this.config);
 
@@ -162,49 +170,17 @@ export class EnhancedLogger {
           });
         }
         // Handle SQL query logs - Winston spreads data directly on info, not in message
-        if (level === 'query' && this.config.enablePrismaIntegration && 'query' in info && 'type' in info) {
+        if (level === 'query' && 'query' in info && 'type' in info) {
           const queryInfo = info as unknown as { type: string; query: string; params?: string; duration: string; timestamp: string };
           const { type, query, params = '', duration } = queryInfo;
           
-          // Rails-style query logging (default)
-          if (this.config.loggingStyle === 'rails') {
-            const durationValue = duration.replace('ms', '');
-            const formattedQuery = this.formatSqlQuery(query, params);
-            const paramsArray = params ? JSON.parse(params) : [];
-            const paramsDisplay = paramsArray.length > 0 ? `  ${JSON.stringify(paramsArray)}` : '';
-            
-            return `  ${type} (${durationValue})  ${formattedQuery}${paramsDisplay}`;
-          }
-          
-          // Enhanced-style colored query logging
+          // Rails-style query logging
+          const durationValue = duration.replace('ms', '');
           const formattedQuery = this.formatSqlQuery(query, params);
-          const durationColor = getDurationColor(
-            duration.replace('ms', ''),
-            this.config.enableColors
-          );
-
-          const typeColors = this.config.enableColors
-            ? {
-                SELECT: chalk.cyan,
-                INSERT: chalk.green,
-                CREATE: chalk.green,
-                UPDATE: chalk.yellow,
-                DELETE: chalk.red,
-              }
-            : {
-                SELECT: (text: string) => text,
-                INSERT: (text: string) => text,
-                CREATE: (text: string) => text,
-                UPDATE: (text: string) => text,
-                DELETE: (text: string) => text,
-              };
-
-          const colorFn = typeColors[type as keyof typeof typeColors] || 
-            (this.config.enableColors ? chalk.white : (text: string) => text);
-
-          const grayFn = this.config.enableColors ? chalk.gray : (text: string) => text;
+          const paramsArray = params ? JSON.parse(params) : [];
+          const paramsDisplay = paramsArray.length > 0 ? `  ${JSON.stringify(paramsArray)}` : '';
           
-          return `${grayFn(timestamp)} ${levelEmoji} ${colorFn(type)}: ${formattedQuery} ${durationColor(`(${duration})`)}`;
+          return `  ${type} (${durationValue})  ${formattedQuery}${paramsDisplay}`;
         }
 
         // Handle regular logs
@@ -223,26 +199,24 @@ export class EnhancedLogger {
   }
 
   // Public logging methods
-  error(message: string | Record<string, unknown>, meta?: Record<string, unknown>) {
+  error(message: string | object, meta?: Record<string, unknown>) {
     this.logger.error(message as string, meta);
   }
 
-  warn(message: string | Record<string, unknown>, meta?: Record<string, unknown>) {
+  warn(message: string | object, meta?: Record<string, unknown>) {
     this.logger.warn(message as string, meta);
   }
 
-  info(message: string | Record<string, unknown>, meta?: Record<string, unknown>) {
+  info(message: string | object, meta?: Record<string, unknown>) {
     this.logger.info(message as string, meta);
   }
 
-  debug(message: string | Record<string, unknown>, meta?: Record<string, unknown>) {
+  debug(message: string | object, meta?: Record<string, unknown>) {
     this.logger.debug(message as string, meta);
   }
 
-  query(data: QueryLogData) {
-    if (this.config.enablePrismaIntegration) {
-      this.logger.log('query', data);
-    }
+  query(data: QueryLogData, meta?: Record<string, unknown>) {
+    this.logger.log('query', '', { ...data, ...meta });
   }
 
   // Request logging middleware
@@ -251,70 +225,69 @@ export class EnhancedLogger {
     const startMemory = process.memoryUsage().heapUsed;
 
     // Rails-style: Log request start
-    if (this.config.loggingStyle === 'rails') {
-      const timestamp = new Date().toLocaleString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        timeZoneName: 'short',
-      });
-      const ip = req?.ip || req?.connection?.remoteAddress || '127.0.0.1';
-      this.logger.info(`Started ${req?.method || 'UNKNOWN'} "${req?.url || '/'}" for ${ip} at ${timestamp}`);
+    const timestamp = new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timeZoneName: 'short',
+    });
+    const ip = req?.ip || req?.connection?.remoteAddress || '127.0.0.1';
+    this.info(`Started ${req?.method || 'UNKNOWN'} "${req?.url || '/'}" for ${ip} at ${timestamp}`);
+    
+    // Log route/controller if available
+    const route = req?.route?.path || req?.path || req?.url;
+    const acceptHeader = req?.get?.('Accept') || 'HTML';
+    const format = acceptHeader.includes('json') ? 'JSON' : acceptHeader.includes('xml') ? 'XML' : 'HTML';
+    
+    // Try to get controller-like information
+    let controllerInfo = route;
+    
+    // Check if route has a custom name/controller property
+    if (req?.route) {
+      // Check for custom controller metadata (you can set this on routes)
+      const routeWithMeta = req.route as { controller?: string; action?: string; stack?: Array<{ handle?: { name?: string } }> };
+      const customController = routeWithMeta.controller;
+      const customAction = routeWithMeta.action;
       
-      // Log route/controller if available
-      const route = req?.route?.path || req?.path || req?.url;
-      const acceptHeader = req?.get?.('Accept') || 'HTML';
-      const format = acceptHeader.includes('json') ? 'JSON' : acceptHeader.includes('xml') ? 'XML' : 'HTML';
-      
-      // Try to get controller-like information
-      let controllerInfo = route;
-      
-      // Check if route has a custom name/controller property
-      if (req?.route) {
-        // Check for custom controller metadata (you can set this on routes)
-        const routeWithMeta = req.route as { controller?: string; action?: string; stack?: Array<{ handle?: { name?: string } }> };
-        const customController = routeWithMeta.controller;
-        const customAction = routeWithMeta.action;
-        
-        if (customController && customAction) {
-          controllerInfo = `${customController}#${customAction}`;
-        } else if (customController) {
-          controllerInfo = `${customController}`;
-        } else {
-          // Try to get handler function name
-          const handler = req.route.stack?.[0]?.handle;
-          if (handler && handler.name && handler.name !== 'anonymous') {
-            controllerInfo = `${route} (${handler.name})`;
-          }
+      if (customController && customAction) {
+        controllerInfo = `${customController}#${customAction}`;
+      } else if (customController) {
+        controllerInfo = `${customController}`;
+      } else {
+        // Try to get handler function name
+        const handler = req.route.stack?.[0]?.handle;
+        if (handler && handler.name && handler.name !== 'anonymous') {
+          controllerInfo = `${route} (${handler.name})`;
         }
       }
-      
-      if (controllerInfo) {
-        this.logger.info(`Processing by ${controllerInfo} as ${format}`);
-      }
+    }
+    
+    if (controllerInfo) {
+      this.info(`Processing by ${controllerInfo} as ${format}`);
+    }
 
-      // Log parameters if they exist
-      const hasParams = (req?.params && Object.keys(req.params).length > 0) ||
-                       (req?.query && Object.keys(req.query).length > 0) ||
-                       (req?.body && Object.keys(req.body).length > 0);
-      
-      if (hasParams) {
-        const allParams = {
-          ...req?.params,
-          ...req?.query,
-          ...req?.body,
-        };
-        this.logger.info(`  Parameters: ${inspect(allParams, { depth: 5, compact: true })}`);
-      }
+    // Log parameters if they exist
+    const hasParams = (req?.params && Object.keys(req.params).length > 0) ||
+                     (req?.query && Object.keys(req.query).length > 0) ||
+                     (req?.body && Object.keys(req.body).length > 0);
+    
+    if (hasParams) {
+      const allParams = {
+        ...req?.params,
+        ...req?.query,
+        ...req?.body,
+      };
+      this.info(`  Parameters: ${inspect(allParams, { depth: 5, compact: true })}`);
     }
 
     // Extract user and request ID using configured functions with null safety
-    const user = this.config.getUserFromRequest ? this.config.getUserFromRequest(req) : undefined;
+    const userResult = this.config.getUserFromRequest ? this.config.getUserFromRequest(req) : undefined;
+    const userEmail = typeof userResult === 'string' ? userResult : userResult?.email;
     const requestId = this.config.getRequestId ? this.config.getRequestId(req) : undefined;
 
     // Preserve request context with safe property access
@@ -327,7 +300,7 @@ export class EnhancedLogger {
 
     // Handler for logging errors
     const errorHandler = (error: Error) => {
-      this.logger.error({
+      this.error({
         requestId,
         error: error.message,
         stack: error.stack,
@@ -344,14 +317,9 @@ export class EnhancedLogger {
       const memoryUsed = process.memoryUsage().heapUsed - startMemory;
 
       // Rails-style completion log
-      if (this.config.loggingStyle === 'rails') {
-        const statusText = res.statusMessage || '';
-        const durationMs = Math.round(duration);
-        this.logger.info(`Completed ${res.statusCode} ${statusText} in ${durationMs}ms`);
-        return; // Skip the regular logging when in Rails mode
-      }
-
-      // Extract route parameters if they exist with null safety
+      const statusText = res.statusMessage || '';
+      const durationMs = Math.round(duration);
+      this.info(`Completed ${res.statusCode} ${statusText} in ${durationMs}ms`);
       const routeParams = req?.params && typeof req.params === 'object' ? req.params : {};
 
       // Truncate large data structures before logging with type guards
@@ -380,7 +348,7 @@ export class EnhancedLogger {
         query: truncatedQuery,
         params: truncatedParams,
         body: truncatedBody,
-        userEmail: user?.email,
+        userEmail,
         context: reqContext,
         headers: {
           contentType: res.get?.('Content-Type'),
@@ -391,17 +359,17 @@ export class EnhancedLogger {
 
       // Log at different levels based on conditions
       if (res.statusCode >= 500) {
-        this.logger.error(logData);
+        this.error(logData);
       } else if (duration > this.config.slowRequestThreshold) {
         const durationColor = getDurationColor(String(duration), this.config.enableColors);
-        this.logger.warn({
+        this.warn({
           ...logData,
           message: `Slow request detected - ${durationColor(`${duration}ms`)}`,
         });
       } else if (memoryUsed > this.config.memoryWarningThreshold) {
-        this.logger.warn({ ...logData, message: 'High memory usage detected' });
+        this.warn({ ...logData, message: 'High memory usage detected' });
       } else {
-        this.logger.info(logData);
+        this.info(logData);
       }
     };
 
@@ -433,9 +401,6 @@ export class EnhancedLogger {
       return;
     }
 
-    // Enable Prisma integration
-    this.config.enablePrismaIntegration = true;
-
     // Query event handler
     prismaClient.$on('query', (e) => {
       const queryType = getQueryType(e.query);
@@ -447,19 +412,11 @@ export class EnhancedLogger {
         const truncatedQuery = e.query.substring(0, 200) + (e.query.length > 200 ? '...' : '');
         const truncatedParams = this.truncateForLog(formattedParams);
         
-        if (this.config.loggingStyle === 'rails') {
-          this.logger.warn(`  ${queryType} (${duration}ms)  ${truncatedQuery}  ${truncatedParams}`);
-          this.logger.warn(`  Slow query detected`);
-        } else {
-          this.logger.warn('Slow query detected', {
-            type: queryType,
-            query: truncatedQuery,
-            duration: `${duration}ms`,
-            params: truncatedParams,
-          });
-        }
+        // Rails-style slow query logging
+        this.warn(`  ${queryType} (${duration}ms)  ${truncatedQuery}  ${truncatedParams}`);
+        this.warn(`  Slow query detected`);
       } else {
-        // Use logger.query() with proper QueryLogData format for enhanced formatting
+        // Use logger.query() with proper QueryLogData format for Rails-style formatting
         this.query({
           type: queryType,
           query: e.query,
@@ -471,17 +428,17 @@ export class EnhancedLogger {
 
     // Info event handler
     prismaClient.$on('info', (e) => {
-      this.logger.info(`PRISMA - ${e.message}`);
+      this.info(`PRISMA - ${e.message}`);
     });
 
     // Warn event handler
     prismaClient.$on('warn', (e) => {
-      this.logger.warn(`PRISMA - ${e.message}`);
+      this.warn(`PRISMA - ${e.message}`);
     });
 
     // Error event handler
     prismaClient.$on('error', (e) => {
-      this.logger.error(`PRISMA ERROR - ${e.message}`);
+      this.error(`PRISMA ERROR - ${e.message}`);
     });
   }
 }

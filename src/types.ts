@@ -45,20 +45,11 @@ export interface LoggerConfig {
   /** Enable colored console output (default: true in development) */
   enableColors?: boolean;
 
-  /** Enable SQL query formatting (requires enablePrismaIntegration: true) */
-  enableSqlFormatting?: boolean;
-
-  /** Enable Prisma-specific features like SQL query formatting */
-  enablePrismaIntegration?: boolean;
-
   /** Slow query threshold in milliseconds for Prisma queries (default: 1000) */
   slowQueryThreshold?: number;
 
   /** Enable simple logging mode - shows only the message without level or formatting (default: false) */
   simpleLogging?: boolean;
-
-  /** Logging style: 'rails' for Rails-style logs (default), 'enhanced' for the original enhanced format */
-  loggingStyle?: 'rails' | 'enhanced';
 
   /** Custom query formatter function for SQL queries */
   customQueryFormatter?: (query: string, params: string) => string;

@@ -111,13 +111,8 @@ const logger = createLogger({
   maxArrayLength: 10, // Truncate arrays longer than 10 items
 });
 
-// Use request logger with user extraction
-app.use(
-  requestLogger({
-    getUserFromRequest: (req) => req.user?.email, // Extract user email
-    getRequestId: (req) => req.headers['x-request-id'] as string, // Extract request ID
-  })
-);
+// Use request logger middleware
+app.use(requestLogger());
 ```
 
 ## ⚙️ Configuration Options
@@ -168,11 +163,6 @@ interface LoggerConfig {
   /** Enable simple logging mode - shows only the message without level or formatting (default: false) */
   simpleLogging?: boolean;
 
-  /** Enable SQL query formatting for Prisma (default: true when enablePrismaIntegration is true) */
-  enableSqlFormatting?: boolean;
-
-  /** Enable Prisma-specific features like SQL query logging (default: false) */
-  enablePrismaIntegration?: boolean;
 
   /** Custom query formatter function for SQL queries */
   customQueryFormatter?: (query: string, params: string) => string;
@@ -257,16 +247,16 @@ const app = express();
 app.use(requestLogger());
 
 // With custom configuration
-app.use(
-  requestLogger({
-    slowRequestThreshold: 500,
-    getUserFromRequest: (req) => req.currentUser,
-    additionalMetadata: (req, res) => ({
-      tenantId: req.headers['x-tenant-id'],
-      apiVersion: req.headers['api-version'],
-    }),
-  })
-);
+const logger = createLogger({
+  slowRequestThreshold: 500,
+  getUserFromRequest: (req) => req.currentUser,
+  additionalMetadata: (req, res) => ({
+    tenantId: req.headers['x-tenant-id'],
+    apiVersion: req.headers['api-version'],
+  }),
+});
+
+app.use(requestLogger());
 ```
 
 ### Prisma Integration (SQL Query Logging)
@@ -349,10 +339,8 @@ import { createLogger } from 'express-enhanced-logger';
 import { PrismaClient } from '@prisma/client';
 
 const logger = createLogger({
-  enablePrismaIntegration: true,
-  enableSqlFormatting: true,
   level: 'query', // Enable query-level logging
-  simpleLogging: false, // REQUIRED: Must be false for Prisma integration
+  simpleLogging: false,
 });
 
 const prisma = new PrismaClient({
@@ -398,32 +386,32 @@ SELECT * FROM lots WHERE id IN (@P1,@P2,@P3,...530 more...,@P534,@P535,@P536)
 - **Configuration warning on startup**: The logger will warn you if you have incompatible settings enabled.
 
 ### Custom User Extraction
-
 ```typescript
 import jwt from 'jsonwebtoken';
 
 // Extract user from JWT token
-app.use(
-  requestLogger({
-    getUserFromRequest: (req) => {
-      if (req.headers.authorization) {
-        try {
-          const token = req.headers.authorization.replace('Bearer ', '');
-          const decoded = jwt.verify(token, process.env.JWT_SECRET) as any;
-          return decoded.email; // Return string
-          // OR return object: { email: decoded.email, id: decoded.userId }
-        } catch {
-          return undefined;
-        }
+// Configure logger with custom user extraction
+const logger = createLogger({
+  getUserFromRequest: (req) => {
+    if (req.headers.authorization) {
+      try {
+        const token = req.headers.authorization.replace('Bearer ', '');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET) as any;
+        return decoded.email; // Return string
+        // OR return object: { email: decoded.email, id: decoded.userId }
+      } catch {
+        return undefined;
       }
-      return undefined;
-    },
-    getRequestId: (req) => {
-      // Extract from header or generate
-      return req.headers['x-request-id'] as string || crypto.randomUUID();
-    },
-  })
-);
+    }
+    return undefined;
+  },
+  getRequestId: (req) => {
+    // Extract from header or generate
+    return req.headers['x-request-id'] as string || crypto.randomUUID();
+  },
+});
+
+app.use(requestLogger());
 ```
 
 ### Multiple Logger Instances
@@ -648,7 +636,7 @@ logger.info('Using default logger');
 Returns Express middleware for request logging.
 
 ```typescript
-app.use(requestLogger({ slowRequestThreshold: 500 }));
+app.use(requestLogger());
 ```
 
 #### Convenience Logging Functions
@@ -673,7 +661,7 @@ query({ type: 'query', query: 'SELECT ...', params: '[]', duration: '50' });
 - **`warn(message, meta?)`** - Log warning message
 - **`info(message, meta?)`** - Log info message
 - **`debug(message, meta?)`** - Log debug message
-- **`query(data: QueryLogData)`** - Log SQL query (requires `enablePrismaIntegration: true`)
+- **`query(data: QueryLogData, meta?)`** - Log SQL query with optional metadata
 - **`getWinstonLogger(): winston.Logger`** - Get underlying Winston instance
 - **`updateConfig(newConfig: Partial<LoggerConfig>)`** - Update configuration at runtime
 
@@ -785,12 +773,15 @@ try {
 Use request IDs to trace requests through your system:
 
 ```typescript
-app.use(requestLogger({
+// Configure logger with custom request ID extraction
+const logger = createLogger({
   getRequestId: (req) => {
     // Use existing ID or generate new one
     return req.headers['x-request-id'] as string || crypto.randomUUID();
   },
-}));
+});
+
+app.use(requestLogger());
 
 // Then in your route handlers
 app.get('/api/users/:id', async (req, res) => {

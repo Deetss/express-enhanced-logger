@@ -27,7 +27,7 @@ export const STATUS_CODE_RANGES = {
 // Default configuration
 export const DEFAULT_CONFIG: Required<Omit<LoggerConfig, 'customLogFormat'>> & {
   customLogFormat?: (info: WinstonLogInfo) => string;
-} = {
+} = Object.freeze({
   level: 'info' as const,
   enableFileLogging: true,
   logsDirectory: 'logs',
@@ -41,16 +41,13 @@ export const DEFAULT_CONFIG: Required<Omit<LoggerConfig, 'customLogFormat'>> & {
   maxStringLength: 100,
   maxObjectKeys: 20,
   enableColors: process.env.NODE_ENV !== 'production',
-  enableSqlFormatting: true,
-  enablePrismaIntegration: false,
   simpleLogging: false,
-  loggingStyle: 'rails' as const,
   customQueryFormatter: (query: string, _params: string) => query,
   getUserFromRequest: (req: Request) => req.currentUser,
   getRequestId: (req: Request) => req.requestId,
   customLogFormat: undefined, // Use the default format instead of JSON
   additionalMetadata: () => ({}),
-};
+});
 
 // Helper function to truncate values for logging
 export const createTruncateForLog = (config: LoggerConfig) => {
