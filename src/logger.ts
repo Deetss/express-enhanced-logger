@@ -172,15 +172,14 @@ export class EnhancedLogger {
         // Handle SQL query logs - Winston spreads data directly on info, not in message
         if (level === 'query' && 'query' in info && 'type' in info) {
           const queryInfo = info as unknown as { type: string; query: string; params?: string; duration: string; timestamp: string };
-          const { type, query, params = '', duration } = queryInfo;
+          const { query, params = '', duration } = queryInfo;
           
           // Rails-style query logging
-          const durationValue = duration.replace('ms', '');
           const formattedQuery = this.formatSqlQuery(query, params);
           const paramsArray = params ? JSON.parse(params) : [];
           const paramsDisplay = paramsArray.length > 0 ? `  ${JSON.stringify(paramsArray)}` : '';
           
-          return `  ${type} (${durationValue})  ${formattedQuery}${paramsDisplay}`;
+          return `  (${duration})  ${formattedQuery}${paramsDisplay}`;
         }
 
         // Handle regular logs
