@@ -9,7 +9,6 @@ import { join } from 'path';
 import { LoggerConfig, QueryLogData, WinstonLogInfo, PrismaClientLike } from './types.js';
 import {
   DEFAULT_CONFIG,
-  createTruncateForLog,
   getQueryType,
   formatParams,
 } from './utils.js';
@@ -20,7 +19,6 @@ export class EnhancedLogger {
   private config: Required<Omit<LoggerConfig, 'customLogFormat'>> & {
     customLogFormat?: (info: WinstonLogInfo) => string;
   };
-  private truncateForLog: (value: unknown, depth?: number) => unknown;
   private formatSqlQuery: (query: string, params: string) => string;
 
   constructor(config: LoggerConfig = {}) {
@@ -34,7 +32,6 @@ export class EnhancedLogger {
       );
     }
     
-    this.truncateForLog = createTruncateForLog(this.config);
     this.formatSqlQuery = createSqlFormatter(this.config);
 
     // Ensure logs directory exists if file logging is enabled
@@ -50,15 +47,27 @@ export class EnhancedLogger {
   }
 
   private createLogger(): winston.Logger {
-    const customFormat = this.config.customLogFormat
-      ? format.printf((info) => this.config.customLogFormat!(info as unknown as WinstonLogInfo))
-      : this.createDefaultFormat();
+    // Always create a proper format to avoid legacy transport warnings
+    let logFormat: winston.Logform.Format;
+    
+    if (this.config.customLogFormat) {
+      logFormat = format.printf((info) => {
+        const result = this.config.customLogFormat!(info as unknown as WinstonLogInfo);
+        // Ensure we always return a string to avoid legacy transport warnings
+        return result || '';
+      });
+    } else {
+      logFormat = this.createDefaultFormat();
+    }
 
     const transports: winston.transport[] = [];
 
     // Console transport (always enabled unless in test)
     if (process.env.NODE_ENV !== 'test') {
-      transports.push(new winston.transports.Console());
+      transports.push(new winston.transports.Console({
+        stderrLevels: [],
+        consoleWarnLevels: [],
+      }));
     } else {
       transports.push(new winston.transports.Console({ silent: true }));
     }
@@ -97,14 +106,20 @@ export class EnhancedLogger {
         debug: 4,
       },
       level: this.config.level,
-      format: customFormat,
+      format: logFormat,
       transports,
     });
   }
 
   private createDefaultFormat() {
     if (process.env.NODE_ENV === 'test') {
-      return undefined;
+      // Return a simple format for tests instead of undefined to avoid legacy transport warning
+      return format.printf((info: winston.Logform.TransformableInfo) => {
+        const { message } = info as unknown as WinstonLogInfo;
+        return typeof message === 'object'
+          ? inspect(message, { colors: false, depth: 5 })
+          : String(message);
+      });
     }
 
     return format.combine(
@@ -125,12 +140,45 @@ export class EnhancedLogger {
           const queryInfo = info as unknown as { type: string; query: string; params?: string; duration: string; timestamp: string };
           const { query, params = '', duration } = queryInfo;
           
-          // Rails-style query logging: indented with 2 spaces, duration in parentheses
-          const formattedQuery = this.formatSqlQuery(query, params);
-          const paramsArray = params ? JSON.parse(params) : [];
-          const paramsDisplay = paramsArray.length > 0 ? `  ${JSON.stringify(paramsArray)}` : '';
+          // Rails-style query logging: model name, duration, then SQL query with syntax highlighting
+          // In Rails, params are shown at the END, not replaced inline
+          let formattedQuery = query;
           
-          return `  ${formattedQuery} (${duration})${paramsDisplay}`;
+          // Apply syntax highlighting to SQL keywords (Rails-style)
+          if (this.config.enableColors) {
+            formattedQuery = this.formatSqlQuery(query, ''); // Don't replace params, just highlight
+          }
+          
+          // Parse params for display at the end (Rails format)
+          let paramsDisplay = '';
+          if (params && params.trim() !== '') {
+            try {
+              const parsedParams = JSON.parse(params);
+              if (Array.isArray(parsedParams) && parsedParams.length > 0) {
+                // Simple format: just show the array of values
+                paramsDisplay = `  ${JSON.stringify(parsedParams)}`;
+              }
+            } catch {
+              // If parsing fails, skip params
+            }
+          }
+          
+          // Rails format: "  User Load (0.8ms)  SELECT ... WHERE ... LIMIT ..."
+          // Extract model name from query if possible (simple heuristic)
+          let modelName = '';
+          const fromMatch = query.match(/FROM\s+"?(\w+)"?/i);
+          if (fromMatch && fromMatch[1]) {
+            modelName = fromMatch[1].charAt(0).toUpperCase() + fromMatch[1].slice(1);
+            // Remove trailing 's' for common plural forms
+            if (modelName.endsWith('s') && modelName.length > 1) {
+              modelName = modelName.slice(0, -1);
+            }
+            modelName = `${modelName} Load`;
+          }
+          
+          // Format: "  Model Load (duration)  QUERY"
+          const modelPrefix = modelName ? `${modelName} ` : '';
+          return `  ${modelPrefix}(${duration})  ${formattedQuery}${paramsDisplay}`;
         }
 
         // Handle regular logs - simple Rails style without emojis or fancy formatting
@@ -284,7 +332,6 @@ export class EnhancedLogger {
   // Update configuration at runtime
   updateConfig(newConfig: Partial<LoggerConfig>) {
     this.config = { ...this.config, ...newConfig };
-    this.truncateForLog = createTruncateForLog(this.config);
     this.formatSqlQuery = createSqlFormatter(this.config);
     // Recreate logger with new config
     this.logger = this.createLogger();
@@ -304,13 +351,22 @@ export class EnhancedLogger {
       const duration = Number(e.duration);
 
       if (duration > this.config.slowQueryThreshold) {
-        // Truncate both query and params for slow queries
-        const truncatedQuery = e.query.substring(0, 200) + (e.query.length > 200 ? '...' : '');
-        const truncatedParams = this.truncateForLog(formattedParams);
+        // Rails-style slow query logging with full formatting
+        // Extract model name for consistency
+        let modelName = '';
+        const fromMatch = e.query.match(/FROM\s+"?(\w+)"?/i);
+        if (fromMatch && fromMatch[1]) {
+          modelName = fromMatch[1].charAt(0).toUpperCase() + fromMatch[1].slice(1);
+          if (modelName.endsWith('s') && modelName.length > 1) {
+            modelName = modelName.slice(0, -1);
+          }
+          modelName = `${modelName} Load`;
+        }
         
-        // Rails-style slow query logging
-        this.warn(`  ${queryType} (${duration}ms)  ${truncatedQuery}  ${truncatedParams}`);
-        this.warn(`  Slow query detected`);
+        const formattedQuery = this.formatSqlQuery(e.query, formattedParams);
+        const modelPrefix = modelName ? `${modelName} ` : `${queryType} `;
+        
+        this.warn(`  ${modelPrefix}(${duration}ms)  ${formattedQuery}`);
       } else {
         // Use logger.query() with proper QueryLogData format for Rails-style formatting
         this.query({

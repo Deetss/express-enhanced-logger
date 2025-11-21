@@ -1,0 +1,20 @@
+
+============================================================
+TERMINAL COLOR VERIFICATION TEST
+============================================================
+
+If your terminal supports colors, you should see:
+- BLUE text for SQL keywords (SELECT, FROM, WHERE, etc.)
+- YELLOW text for table names in quotes ("users", etc.)
+
+============================================================
+
+  User Load (2.5ms)  SELECT "users"."id", "users"."email" FROM "users" WHERE "users"."id" = $1 ORDER BY "users"."created_at" DESC LIMIT $2  ["123","10"]
+
+============================================================
+END OF TEST
+============================================================
+
+✓ If you saw colored SQL keywords above, colors are working!
+✗ If everything was plain white/gray, check your terminal settings
+

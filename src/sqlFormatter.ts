@@ -1,13 +1,34 @@
-import chalk from 'chalk';
+import chalk, { Chalk } from 'chalk';
 import { LoggerConfig } from './types.js';
 import { createTruncateForLog } from './utils.js';
 
+// Set FORCE_COLOR before using Chalk to ensure colors are always output when requested
+// This can be overridden by the user by setting FORCE_COLOR=0 in their environment
+if (!process.env.FORCE_COLOR) {
+  process.env.FORCE_COLOR = '3';
+}
+
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+// SQL keywords to highlight (similar to Rails ActiveRecord logs)
+const SQL_KEYWORDS = [
+  'SELECT', 'FROM', 'WHERE', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'ALTER', 'DROP',
+  'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'ON', 'AS', 'AND', 'OR', 'NOT', 'IN',
+  'ORDER BY', 'GROUP BY', 'HAVING', 'LIMIT', 'OFFSET', 'SET', 'VALUES', 'INTO',
+  'BEGIN', 'COMMIT', 'ROLLBACK', 'TRANSACTION', 'ASC', 'DESC', 'DISTINCT', 'COUNT',
+  'SUM', 'AVG', 'MIN', 'MAX', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'IS', 'NULL',
+  'EXISTS', 'BETWEEN', 'LIKE', 'ILIKE'
+];
 
 export const createSqlFormatter = (config: LoggerConfig) => {
   const truncateForLog = createTruncateForLog(config);
   const enableColors = config.enableColors ?? true;
   const maxStringLength = config.maxStringLength ?? 100;
+  
+  // Create a chalk instance
+  // Note: FORCE_COLOR should be set before this function is called (in logger constructor)
+  // Level 3 = full color support (16m colors), Level 0 = no colors
+  const chalkInstance = enableColors ? new Chalk({ level: 3 }) : new Chalk({ level: 0 });
 
   const formatSqlQuery = (query: string, params: string): string => {
     // If custom formatter is provided, use it
@@ -15,31 +36,33 @@ export const createSqlFormatter = (config: LoggerConfig) => {
       return config.customQueryFormatter(query, params);
     }
 
-    // Handle empty or undefined params - still truncate the query if needed
-    if (!params || params.trim() === '') {
-      return smartTruncateQuery(query, enableColors);
-    }
+    let formattedQuery = query;
 
-    try {
-      const parsedParams = parseQueryParams(params);
-      if (!parsedParams) {
-        // If params can't be parsed, still truncate the original query
-        return smartTruncateQuery(query, enableColors);
+    // Handle params replacement first
+    if (params && params.trim() !== '') {
+      try {
+        const parsedParams = parseQueryParams(params);
+        if (parsedParams) {
+          const paramArray = Array.isArray(parsedParams) ? parsedParams : [];
+          formattedQuery = replaceParamsInQuery(query, paramArray, {
+            truncateForLog,
+            enableColors,
+            maxStringLength,
+            chalkInstance,
+          });
+        }
+      } catch {
+        // Silently continue with original query if formatting fails
       }
-
-      const paramArray = Array.isArray(parsedParams) ? parsedParams : [];
-      const formattedQuery = replaceParamsInQuery(query, paramArray, {
-        truncateForLog,
-        enableColors,
-        maxStringLength,
-      });
-
-      // Only truncate if the query has large parameter lists (IN clauses, etc.)
-      return smartTruncateQuery(formattedQuery, enableColors);
-    } catch {
-      // Silently return truncated original query if formatting fails
-      return smartTruncateQuery(query, enableColors);
     }
+
+    // Apply syntax highlighting to SQL keywords (Rails-style)
+    if (enableColors) {
+      formattedQuery = highlightSqlKeywords(formattedQuery, chalkInstance);
+    }
+
+    // Only truncate if the query has large parameter lists (IN clauses, etc.)
+    return smartTruncateQuery(formattedQuery, enableColors, chalkInstance);
   };
 
   return formatSqlQuery;
@@ -122,7 +145,26 @@ function manualParseArray(params: string): JsonValue[] | null {
 }
 
 /**
- * Replace @P1, @P2 placeholders with actual parameter values
+ * Highlight SQL keywords like Rails does (cyan color for keywords)
+ */
+function highlightSqlKeywords(query: string, chalkInstance: typeof chalk): string {
+  let highlighted = query;
+  
+  // Highlight SQL keywords in cyan (Rails-style)
+  SQL_KEYWORDS.forEach((keyword) => {
+    // Use word boundaries to match whole keywords, case-insensitive
+    const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
+    highlighted = highlighted.replace(regex, (match) => chalkInstance.cyan(match));
+  });
+
+  // Highlight table/column names in quotes with a subtle color
+  highlighted = highlighted.replace(/"([^"]+)"/g, (match) => chalkInstance.yellow(match));
+
+  return highlighted;
+}
+
+/**
+ * Replace @P1, @P2 or $1, $2 placeholders with actual parameter values
  */
 function replaceParamsInQuery(
   query: string,
@@ -131,16 +173,21 @@ function replaceParamsInQuery(
     truncateForLog: (value: unknown) => unknown;
     enableColors: boolean;
     maxStringLength: number;
+    chalkInstance: typeof chalk;
   }
 ): string {
-  const { truncateForLog, enableColors, maxStringLength } = options;
+  const { truncateForLog, enableColors, maxStringLength, chalkInstance } = options;
   let formattedQuery = query;
 
   paramArray.forEach((param: JsonValue, index: number) => {
-    const placeholder = `@P${index + 1}`;
-    const displayParam = formatParamValue(param, { truncateForLog, enableColors, maxStringLength });
+    // Support both @P1, @P2 (Prisma) and $1, $2 (PostgreSQL/Rails) formats
+    const placeholderAtP = `@P${index + 1}`;
+    const placeholderDollar = `$${index + 1}`;
+    const displayParam = formatParamValue(param, { truncateForLog, enableColors, maxStringLength, chalkInstance });
 
-    formattedQuery = formattedQuery.replace(new RegExp(placeholder, 'g'), displayParam);
+    // Replace both placeholder formats
+    formattedQuery = formattedQuery.replace(new RegExp(`\\${placeholderAtP}\\b`, 'g'), displayParam);
+    formattedQuery = formattedQuery.replace(new RegExp(`\\${placeholderDollar}\\b`, 'g'), displayParam);
   });
 
   return formattedQuery;
@@ -155,9 +202,10 @@ function formatParamValue(
     truncateForLog: (value: unknown) => unknown;
     enableColors: boolean;
     maxStringLength: number;
+    chalkInstance: typeof chalk;
   }
 ): string {
-  const { truncateForLog, enableColors, maxStringLength } = options;
+  const { truncateForLog, enableColors, maxStringLength, chalkInstance } = options;
 
   let displayParam: string;
 
@@ -171,7 +219,7 @@ function formatParamValue(
     );
 
     if (allPrimitives && param.length > 10) {
-      displayParam = formatArrayForSql(param, enableColors);
+      displayParam = formatArrayForSql(param, enableColors, chalkInstance);
     } else {
       displayParam = JSON.stringify(truncateForLog(param));
     }
@@ -183,13 +231,13 @@ function formatParamValue(
     displayParam = typeof param === 'string' ? `'${param}'` : String(param);
   }
 
-  return enableColors ? chalk.bold(displayParam) : displayParam;
+  return enableColors ? chalkInstance.bold(displayParam) : displayParam;
 }
 
 /**
  * Format large arrays for SQL display
  */
-function formatArrayForSql(arr: JsonValue[], enableColors: boolean): string {
+function formatArrayForSql(arr: JsonValue[], enableColors: boolean, chalkInstance: typeof chalk): string {
   const MAX_INLINE_ITEMS = 10;
 
   if (arr.length <= MAX_INLINE_ITEMS) {
@@ -200,14 +248,14 @@ function formatArrayForSql(arr: JsonValue[], enableColors: boolean): string {
   const firstItems = arr.slice(0, halfShow);
   const lastItems = arr.slice(-halfShow);
 
-  const dimFn = enableColors ? chalk.dim : (text: string) => text;
+  const dimFn = enableColors ? chalkInstance.dim : (text: string) => text;
   return `${firstItems.join(',')}${dimFn(`,...${arr.length - MAX_INLINE_ITEMS} more...`)},${lastItems.join(',')}`;
 }
 
 /**
  * Smart truncation that only truncates queries with large parameter lists
  */
-function smartTruncateQuery(query: string, enableColors: boolean): string {
+function smartTruncateQuery(query: string, enableColors: boolean, chalkInstance: typeof chalk): string {
   const PARAM_THRESHOLD = 10; // Only truncate if there are many consecutive parameters
 
   // Check if query has large parameter lists (IN clauses with many items)
@@ -238,7 +286,7 @@ function smartTruncateQuery(query: string, enableColors: boolean): string {
 
   // Truncate ALL large IN clauses in the query
   let truncatedQuery = query;
-  const dimFn = enableColors ? chalk.dim : (text: string) => text;
+  const dimFn = enableColors ? chalkInstance.dim : (text: string) => text;
   
   // Process each IN clause
   truncatedQuery = truncatedQuery.replace(/IN\s*\(([^)]+)\)/gi, (match, inParams) => {
