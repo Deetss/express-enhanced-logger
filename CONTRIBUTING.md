@@ -114,7 +114,7 @@ This runs TypeScript compiler in watch mode. Changes to `src/**/*.ts` files will
 
 ## 🧪 Testing
 
-We use Jest with TypeScript support for testing. The project currently has **81% test coverage** with **134 passing tests**.
+We use Jest with TypeScript support for testing. The project currently has **86% test coverage** with **201 passing tests**.
 
 ### Running Tests
 
