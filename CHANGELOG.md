@@ -1,3 +1,10 @@
+## [2.6.1](https://github.com/Deetss/express-enhanced-logger/compare/v2.6.0...v2.6.1) (2025-11-21)
+
+
+### Bug Fixes
+
+* Simplify SQL query logging format by removing type and duration value extraction ([1e44ff4](https://github.com/Deetss/express-enhanced-logger/commit/1e44ff4a6a433e0113d0f073350626b9a8f009ea))
+
 # [2.6.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.5.0...v2.6.0) (2025-11-21)
 
 
