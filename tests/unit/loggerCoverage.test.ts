@@ -272,6 +272,7 @@ describe('Logger Coverage Tests', () => {
           once: jest.fn(),
           off: jest.fn(),
           get: jest.fn(),
+          statusMessage: 'OK',
         } as unknown as Response;
   
         const mockNext = jest.fn();
@@ -282,9 +283,8 @@ describe('Logger Coverage Tests', () => {
         const finishHandler = (mockRes.once as jest.Mock).mock.calls.find(c => c[0] === 'finish')[1];
         finishHandler();
         
-        expect(warnSpy).toHaveBeenCalledWith(expect.objectContaining({
-            message: expect.stringContaining('Slow request detected')
-        }));
+        // Updated to match new Rails-style output format
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Slow request'));
 
         // Restore original performance.now
         Object.defineProperty(performance, 'now', {
