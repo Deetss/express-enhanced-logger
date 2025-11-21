@@ -1,7 +1,7 @@
 # express-enhanced-logger
 
 [![npm version](https://img.shields.io/npm/v/express-enhanced-logger.svg)](https://www.npmjs.com/package/express-enhanced-logger)
-[![Test Coverage](https://img.shields.io/badge/coverage-99%25-brightgreen.svg)](https://github.com/Deetss/express-enhanced-logger)
+[![Test Coverage](https://img.shields.io/badge/coverage-97%25-brightgreen.svg)](https://github.com/Deetss/express-enhanced-logger)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -16,7 +16,7 @@ A Rails-inspired Express.js logger with clean output, performance monitoring, SQ
 - 📁 **File Logging** - Automatic log rotation with configurable retention (JSON format)
 - ⚙️ **Highly Configurable** - Extensive customization options for any use case
 - 🔧 **TypeScript First** - Full type definitions and interfaces included
-- ✅ **Well Tested** - 99% test coverage with 214 passing tests
+- ✅ **Well Tested** - 97% test coverage with 214 passing tests
 - 🪶 **Lightweight** - Minimal dependencies (winston, chalk, winston-daily-rotate-file)
 
 ## 📦 Installation
@@ -919,7 +919,7 @@ npm run lint
 npm run format
 ```
 
-**Current Test Coverage:** 99% (214 passing tests)
+**Current Test Coverage:** 97% (214 passing tests)
 
 ## 📄 License
 
