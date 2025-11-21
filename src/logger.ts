@@ -277,8 +277,9 @@ export class EnhancedLogger {
       // Check if route has a custom name/controller property
       if (req?.route) {
         // Check for custom controller metadata (you can set this on routes)
-        const customController = (req.route as any).controller;
-        const customAction = (req.route as any).action;
+        const routeWithMeta = req.route as { controller?: string; action?: string; stack?: Array<{ handle?: { name?: string } }> };
+        const customController = routeWithMeta.controller;
+        const customAction = routeWithMeta.action;
         
         if (customController && customAction) {
           controllerInfo = `${customController}#${customAction}`;
