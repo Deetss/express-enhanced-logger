@@ -302,11 +302,11 @@ normalLogger.info('Started GET "/" for 127.0.0.1 at 11/21/2025, 10:30:45 CST');
 
 ```typescript
 import express from 'express';
-import { requestLogger } from 'express-enhanced-logger';
+import { createLogger, requestLogger } from 'express-enhanced-logger';
 
 const app = express();
 
-// Basic request logging
+// Basic request logging (using default logger)
 app.use(requestLogger());
 
 // With custom configuration
@@ -319,6 +319,7 @@ const logger = createLogger({
   }),
 });
 
+// Use the request logger (it automatically uses the logger created above)
 app.use(requestLogger());
 ```
 
