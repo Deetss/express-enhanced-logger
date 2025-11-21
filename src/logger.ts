@@ -5,6 +5,7 @@ import { performance } from 'perf_hooks';
 import { NextFunction, Request, Response } from 'express';
 import { mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
+import chalk from 'chalk';
 
 import { LoggerConfig, QueryLogData, WinstonLogInfo, PrismaClientLike } from './types.js';
 import {
@@ -123,14 +124,117 @@ export class EnhancedLogger {
         // Handle SQL query logs - Winston spreads data directly on info, not in message
         if (level === 'query' && 'query' in info && 'type' in info) {
           const queryInfo = info as unknown as { type: string; query: string; params?: string; duration: string; timestamp: string };
-          const { query, params = '', duration } = queryInfo;
+          const { query, params = '', duration, type } = queryInfo;
           
-          // Rails-style query logging: indented with 2 spaces, duration in parentheses
-          const formattedQuery = this.formatSqlQuery(query, params);
-          const paramsArray = params ? JSON.parse(params) : [];
-          const paramsDisplay = paramsArray.length > 0 ? `  ${JSON.stringify(paramsArray)}` : '';
+          // Determine query type for color coding
+          const queryType = type.toUpperCase();
           
-          return `  ${formattedQuery} (${duration})${paramsDisplay}`;
+          // Rails-style query logging: model name, duration, then SQL query with syntax highlighting
+          let formattedQuery = query;
+          
+          // Apply syntax highlighting to SQL keywords (Rails-style)
+          if (this.config.enableColors) {
+            formattedQuery = this.formatSqlQuery(query, ''); // Don't replace params, just highlight
+          }
+          
+          // Parse params for display at the end (Rails format)
+          let paramsDisplay = '';
+          if (params && params.trim() !== '') {
+            try {
+              const parsedParams = JSON.parse(params);
+              if (Array.isArray(parsedParams) && parsedParams.length > 0) {
+                // Rails format: show params as named array with proper formatting
+                // Example: [["email", "test@example.com"], ["LIMIT", 1]]
+                paramsDisplay = `  ${JSON.stringify(parsedParams)}`;
+              }
+            } catch {
+              // If parsing fails, skip params
+            }
+          }
+          
+          // Extract model name from query (Rails shows "User Load", "Post Create", etc.)
+          let modelName = '';
+          let actionName = 'Load';
+          
+          // Determine action based on query type
+          switch (queryType) {
+            case 'INSERT':
+              actionName = 'Create';
+              break;
+            case 'UPDATE':
+              actionName = 'Update';
+              break;
+            case 'DELETE':
+              actionName = 'Destroy';
+              break;
+            case 'SELECT':
+              // Check for specific SELECT patterns
+              const upperQuery = query.toUpperCase();
+              if (upperQuery.includes('SELECT 1 AS ONE') || upperQuery.includes('EXISTS')) {
+                actionName = 'Exists?';
+              } else if (upperQuery.includes('COUNT(')) {
+                actionName = 'Count';
+              } else {
+                actionName = 'Load';
+              }
+              break;
+            default:
+              actionName = '';
+          }
+          
+          // Extract table name from query
+          const fromMatch = query.match(/FROM\s+"?(\w+)"?/i);
+          const intoMatch = query.match(/INTO\s+"?(\w+)"?/i);
+          const updateMatch = query.match(/UPDATE\s+"?(\w+)"?/i);
+          
+          const tableName = fromMatch?.[1] || intoMatch?.[1] || updateMatch?.[1];
+          
+          if (tableName) {
+            // Convert table name to model name (capitalize, remove trailing 's')
+            modelName = tableName.charAt(0).toUpperCase() + tableName.slice(1);
+            // Remove trailing 's' for common plural forms (simple heuristic)
+            if (modelName.endsWith('s') && modelName.length > 1 && !modelName.endsWith('ss')) {
+              modelName = modelName.slice(0, -1);
+            }
+          }
+          
+          // Rails format: "  Model Action (duration)  QUERY  [params]"
+          // Example: "  User Load (1.2ms)  SELECT..."
+          const modelPrefix = modelName && actionName 
+            ? `${modelName} ${actionName} ` 
+            : queryType === 'BEGIN' || queryType === 'COMMIT' || queryType === 'ROLLBACK'
+            ? 'TRANSACTION '
+            : '';
+            
+          let logLine = `  ${modelPrefix}(${duration})  ${formattedQuery}${paramsDisplay}`;
+          
+          // Apply color based on query type
+          if (this.config.enableColors) {
+            switch (queryType) {
+              case 'SELECT':
+                logLine = chalk.blue(logLine);
+                break;
+              case 'UPDATE':
+                logLine = chalk.yellow(logLine);
+                break;
+              case 'DELETE':
+              case 'ROLLBACK':
+                // Both DELETE and ROLLBACK are "negative" operations - use red
+                logLine = chalk.red(logLine);
+                break;
+              case 'INSERT':
+              case 'CREATE':
+                logLine = chalk.green(logLine);
+                break;
+              case 'BEGIN':
+              case 'COMMIT':
+                logLine = chalk.magenta(logLine);
+                break;
+              // Default: keep syntax highlighting from formatSqlQuery
+            }
+          }
+          
+          return logLine;
         }
 
         // Handle regular logs - simple Rails style without emojis or fancy formatting

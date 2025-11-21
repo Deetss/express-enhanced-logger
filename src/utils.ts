@@ -226,10 +226,10 @@ export const removeUndefinedDeep = (obj: unknown): unknown => {
 // Prisma helper functions
 export function getQueryType(
   query: string
-): 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'COMMIT' | 'CREATE' | 'OTHER' {
+): 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'COMMIT' | 'ROLLBACK' | 'BEGIN' | 'CREATE' | 'OTHER' {
   const type = query.split(' ')[0]?.toUpperCase() || 'OTHER';
-  return ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'COMMIT', 'CREATE'].includes(type)
-    ? (type as 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'COMMIT' | 'CREATE')
+  return ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'COMMIT', 'ROLLBACK', 'BEGIN', 'CREATE'].includes(type)
+    ? (type as 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'COMMIT' | 'ROLLBACK' | 'BEGIN' | 'CREATE')
     : 'OTHER';
 }
 
