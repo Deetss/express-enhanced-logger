@@ -5,15 +5,15 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An enhanced Express.js logger with performance monitoring, SQL query formatting, and highly customizable features. Built on Winston with full TypeScript support.
+A Rails-inspired Express.js logger with clean output, performance monitoring, SQL query formatting, and Prisma integration. Built on Winston with full TypeScript support.
 
 ## ✨ Features
 
-- 🚀 **Performance Monitoring** - Track slow requests, memory usage, and response times
+- � **Rails-Style Output** - Clean, minimal logging format inspired by Ruby on Rails (no emojis, clear formatting)
+- �🚀 **Performance Monitoring** - Track slow requests, memory usage, and response times
 - 🔍 **Smart SQL Formatting** - Intelligent truncation for large IN clauses with parameter substitution
 - 🗄️ **Prisma Integration** - Plug-and-play Prisma logging with one line of code
-- 🎨 **Colored Output** - Beautiful, readable console logs with syntax highlighting
-- 📁 **File Logging** - Automatic log rotation with configurable retention
+- 📁 **File Logging** - Automatic log rotation with configurable retention (JSON format)
 - ⚙️ **Highly Configurable** - Extensive customization options for any use case
 - 🔧 **TypeScript First** - Full type definitions and interfaces included
 - ✅ **Well Tested** - 99% test coverage with 214 passing tests
@@ -95,6 +95,64 @@ export default prismaClient;
 ```
 
 > 🎯 **See the [Prisma Integration](#prisma-integration-sql-query-logging) section below for detailed usage and examples.**
+
+## 🚂 Rails-Style Logging
+
+The logger produces **clean, Rails-inspired output** that's minimal and easy to read:
+
+### Key Characteristics
+
+- ✨ **No emojis or fancy symbols** - Just clean, professional text
+- 🕐 **Timestamps only at request start** - Not cluttering every line
+- 📏 **Proper indentation** - 2 spaces for SQL queries and parameters
+- 🎯 **Clear request flow** - Started → Processing → Queries → Completed
+
+### Example Output
+
+```
+Started GET "/api/users/123" for 127.0.0.1 at 11/21/2025, 10:30:45 CST
+Processing by UsersController#show as JSON
+  SELECT * FROM users WHERE id = $1 (1.5ms)  ['123']
+Completed 200 OK in 15ms
+```
+
+### Adding Controller Metadata
+
+For even cleaner logs that show controller actions, add metadata to your routes:
+
+```typescript
+app.get('/users/:id', (req, res) => {
+  // Add controller metadata
+  req.route.controller = 'UsersController';
+  req.route.action = 'show';
+  
+  // Your route logic
+  res.json({ id: req.params.id, name: 'John Doe' });
+});
+```
+
+This produces:
+```
+Processing by UsersController#show as JSON
+```
+
+Instead of:
+```
+Processing by /users/:id as JSON
+```
+
+### SQL Query Format
+
+Queries are logged with proper indentation and timing:
+
+```
+  SELECT * FROM users WHERE id = $1 (1.5ms)  ['123']
+  INSERT INTO orders (user_id, total) VALUES ($1, $2) (2.3ms)  [123, 99.99]
+```
+
+Format: `  QUERY (duration)  [params]`
+
+See the [RAILS_STYLE.md](RAILS_STYLE.md) guide for more details and comparison with actual Rails output.
 
 ### With Custom Configuration
 
@@ -220,22 +278,25 @@ debug('Request payload', { body: req.body });
 
 ### Simple Logging Mode
 
-For cleaner output without timestamps, log levels, or formatting:
+For even cleaner output without any formatting (just raw messages):
 
 ```typescript
 import { createLogger } from 'express-enhanced-logger';
 
-// Enable simple logging mode
+// Enable simple logging mode - shows only the raw message
 const logger = createLogger({ simpleLogging: true });
 
 logger.info('Just the message'); // Output: Just the message
 logger.warn('A warning message'); // Output: A warning message
 logger.error({ code: 500, msg: 'Error' }); // Output: { code: 500, msg: 'Error' }
 
-// Compare with normal logging:
+// Compare with normal Rails-style logging:
 const normalLogger = createLogger({ simpleLogging: false });
-normalLogger.info('With formatting'); // Output: 2025-11-16 17:52:15 ℹ️ info: With formatting
+normalLogger.info('Started GET "/" for 127.0.0.1 at 11/21/2025, 10:30:45 CST');
+// Output: Started GET "/" for 127.0.0.1 at 11/21/2025, 10:30:45 CST
 ```
+
+**Note:** Simple logging mode disables Rails-style request formatting and SQL query formatting.
 
 ### Request Logging Middleware
 
@@ -474,46 +535,65 @@ app.use(requestLogger());
 
 ## 📊 Sample Output
 
+The logger produces clean, **Rails-style output** with no emojis or fancy formatting - just clear, readable logs:
+
 ### HTTP Request Log
 
-```text
-2025-11-17 10:30:45 ℹ️  GET    /api/users/123 200 OK 245ms
-├ RequestID: req_abc123
-├ User: john@example.com
-└ Memory: +2.5MB
+```
+Started GET "/api/users/123" for 127.0.0.1 at 11/21/2025, 10:30:45 CST
+Processing by UsersController#show as JSON
+Completed 200 OK in 245ms
+```
+
+### Request with Parameters
+
+```
+Started POST "/api/reports" for 127.0.0.1 at 11/21/2025, 10:30:45 CST
+Processing by ReportsController#create as JSON
+  Parameters: { type: 'monthly', year: 2025 }
+Completed 200 OK in 1850ms
 ```
 
 ### Slow Request Warning
 
-```text
-2025-11-17 10:30:45 ⚠️  POST   /api/reports 200 OK 1850ms (SLOW)
-├ RequestID: req_def456
-├ Body: { "type": "monthly", "year": 2025 }
-└ User: admin@example.com
+```
+Started POST "/api/reports" for 127.0.0.1 at 11/21/2025, 10:30:45 CST
+Processing by ReportsController#create as JSON
+Completed 200 OK in 1850ms (Slow request)
 ```
 
 ### SQL Query Log (with Prisma)
 
-```sql
-2025-11-17 10:30:45 🛢️  SELECT * FROM users WHERE id = '123' AND status = 'ACTIVE' 45ms
+```
+Started GET "/api/users/123" for 127.0.0.1 at 11/21/2025, 10:30:45 CST
+Processing by UsersController#show as JSON
+  SELECT * FROM users WHERE id = $1 AND status = $2 (45ms)  ['123', 'ACTIVE']
+Completed 200 OK in 245ms
 ```
 
 ### Large IN Clause (Smart Truncation)
 
-```sql
-2025-11-17 10:30:45 🛢️  SELECT * FROM orders WHERE id IN (1,2,3,...47 more...,53,54,55) 120ms
+```
+  SELECT * FROM orders WHERE id IN (1,2,3,...47 more...,53,54,55) (120ms)
 ```
 
 ### Error Log
 
-```json
-2025-11-17 10:30:45 ❌ error: User not found
-{
-  "requestId": "req_abc123",
-  "errorCode": "USER_NOT_FOUND",
-  "userId": 123,
-  "stack": "Error: User not found\n    at UserService.findById..."
-}
+```
+Started GET "/api/users/999" for 127.0.0.1 at 11/21/2025, 10:30:45 CST
+Processing by UsersController#show as JSON
+User not found
+Completed 500 Error in 15ms
+```
+
+### Complete Request Flow Example
+
+```
+Started POST "/api/users" for 127.0.0.1 at 11/21/2025, 10:30:45 CST
+Processing by UsersController#create as JSON
+  Parameters: { name: 'John Doe', email: 'john@example.com' }
+  INSERT INTO "users" ("name", "email", "created_at") VALUES ($1, $2, $3) RETURNING "id" (2.5ms)  ['John Doe', 'john@example.com', '2025-11-21T16:30:45.123Z']
+Completed 201 Created in 25ms
 ```
 
 ### TypeScript Types
