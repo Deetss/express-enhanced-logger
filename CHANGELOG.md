@@ -1,3 +1,10 @@
+# [2.6.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.5.0...v2.6.0) (2025-11-21)
+
+
+### Features
+
+* Add comprehensive unit tests for `EnhancedLogger` and remove `enableSqlFormatting` and `enablePrismaIntegration` configuration options. ([677bb19](https://github.com/Deetss/express-enhanced-logger/commit/677bb199892ff159bd7d63940f6f6afc4a7d82f6))
+
 # [2.5.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.4.1...v2.5.0) (2025-11-17)
 
 
