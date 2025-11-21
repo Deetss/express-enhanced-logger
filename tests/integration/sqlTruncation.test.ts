@@ -1,14 +1,17 @@
-const { spawn } = require('child_process');
-const path = require('path');
-const fs = require('fs');
+import { spawn } from 'child_process';
+import * as path from 'path';
+import * as fs from 'fs';
+
+interface TestResult {
+  output: string;
+  errorOutput: string;
+}
 
 describe('SQL Query Smart Truncation Integration Tests', () => {
-  const createTestScript = (testCases) => `
-    import { createSqlFormatter } from '../dist/sqlFormatter.js';
+  const createTestScript = (testCases: string): string => `
+    import { createSqlFormatter } from '../../dist/sqlFormatter.js';
     
     const config = {
-      enableSqlFormatting: true,
-      enablePrismaIntegration: true,
       enableColors: false,
       maxStringLength: 100,
       maxArrayLength: 5,
@@ -22,7 +25,7 @@ describe('SQL Query Smart Truncation Integration Tests', () => {
     console.log('TESTS_COMPLETE');
   `;
 
-  const runTestScript = (testScript, timeout = 5000) => {
+  const runTestScript = (testScript: string, timeout: number = 5000): Promise<TestResult> => {
     return new Promise((resolve, reject) => {
       const testFile = path.join(__dirname, 'temp-sql-test.mjs');
       fs.writeFileSync(testFile, testScript);
@@ -35,15 +38,29 @@ describe('SQL Query Smart Truncation Integration Tests', () => {
       let output = '';
       let errorOutput = '';
 
-      child.stdout.on('data', (data) => {
+      child.stdout.on('data', (data: Buffer) => {
         output += data.toString();
       });
 
-      child.stderr.on('data', (data) => {
+      child.stderr.on('data', (data: Buffer) => {
         errorOutput += data.toString();
       });
 
       let testCompleted = false;
+
+      // Set timeout for the test
+      const timeoutHandle = setTimeout(() => {
+        if (testCompleted) return;
+        testCompleted = true;
+
+        child.kill();
+        try {
+          fs.unlinkSync(testFile);
+        } catch (e) {
+          // Ignore
+        }
+        reject(new Error('Test timeout'));
+      }, timeout);
 
       child.on('close', (code) => {
         if (testCompleted) return;
@@ -64,20 +81,6 @@ describe('SQL Query Smart Truncation Integration Tests', () => {
 
         resolve({ output, errorOutput });
       });
-
-      // Set timeout for the test
-      const timeoutHandle = setTimeout(() => {
-        if (testCompleted) return;
-        testCompleted = true;
-
-        child.kill();
-        try {
-          fs.unlinkSync(testFile);
-        } catch (e) {
-          // Ignore
-        }
-        reject(new Error('Test timeout'));
-      }, timeout);
     });
   };
 
@@ -92,7 +95,7 @@ describe('SQL Query Smart Truncation Integration Tests', () => {
 
     const { output } = await runTestScript(testScript);
 
-    const section = output.split('RESULT:')[1].split('TEST_END')[0].trim();
+    const section = output.split('RESULT:')[1]!.split('TEST_END')[0]!.trim();
     
     // Should contain full column list without truncation
     expect(section).toContain('PKIssueID');
@@ -117,7 +120,7 @@ describe('SQL Query Smart Truncation Integration Tests', () => {
 
     const { output } = await runTestScript(testScript);
 
-    const section = output.split('RESULT:')[1].split('TEST_END')[0].trim();
+    const section = output.split('RESULT:')[1]!.split('TEST_END')[0]!.trim();
     
     // Should contain all parameters
     expect(section).toContain('IN (1,2,3,4,5)');
@@ -139,7 +142,7 @@ describe('SQL Query Smart Truncation Integration Tests', () => {
 
     const { output } = await runTestScript(testScript);
 
-    const section = output.split('RESULT:')[1].split('TEST_END')[0].trim();
+    const section = output.split('RESULT:')[1]!.split('TEST_END')[0]!.trim();
     
     // At exactly 10 params, should NOT truncate
     expect(section).toContain('1,2,3,4,5,6,7,8,9,10');
@@ -158,7 +161,7 @@ describe('SQL Query Smart Truncation Integration Tests', () => {
 
     const { output } = await runTestScript(testScript);
 
-    const section = output.split('RESULT:')[1].split('TEST_END')[0].trim();
+    const section = output.split('RESULT:')[1]!.split('TEST_END')[0]!.trim();
     
     // Should be truncated showing first 3, count, last 3
     expect(section).toContain('1,2,3');
@@ -186,7 +189,7 @@ describe('SQL Query Smart Truncation Integration Tests', () => {
 
     const { output } = await runTestScript(testScript);
 
-    const section = output.split('RESULT:')[1].split('TEST_END')[0].trim();
+    const section = output.split('RESULT:')[1]!.split('TEST_END')[0]!.trim();
     
     // Should show first 3 and last 3
     expect(section).toContain('1,2,3');
@@ -213,7 +216,7 @@ describe('SQL Query Smart Truncation Integration Tests', () => {
 
     const { output } = await runTestScript(testScript);
 
-    const section = output.split('RESULT:')[1].split('TEST_END')[0].trim();
+    const section = output.split('RESULT:')[1]!.split('TEST_END')[0]!.trim();
     
     // Should show first 3 and last 3
     expect(section).toContain('1,2,3');
@@ -234,7 +237,7 @@ describe('SQL Query Smart Truncation Integration Tests', () => {
 
     const { output } = await runTestScript(testScript);
 
-    const section = output.split('RESULT:')[1].split('TEST_END')[0].trim();
+    const section = output.split('RESULT:')[1]!.split('TEST_END')[0]!.trim();
     
     // Should contain full query
     expect(section).toContain('PKLotSaleID');
@@ -264,7 +267,7 @@ describe('SQL Query Smart Truncation Integration Tests', () => {
 
     const { output } = await runTestScript(testScript);
 
-    const section = output.split('RESULT:')[1].split('TEST_END')[0].trim();
+    const section = output.split('RESULT:')[1]!.split('TEST_END')[0]!.trim();
     
     // First IN clause should be truncated (15 params)
     expect(section).toMatch(/1,2,3.*more.*13,14,15/);
@@ -285,7 +288,7 @@ describe('SQL Query Smart Truncation Integration Tests', () => {
 
     const { output } = await runTestScript(testScript);
 
-    const section = output.split('RESULT:')[1].split('TEST_END')[0].trim();
+    const section = output.split('RESULT:')[1]!.split('TEST_END')[0]!.trim();
     
     // Should handle gracefully without errors
     expect(section).toContain('SELECT * FROM Users');
@@ -303,7 +306,7 @@ describe('SQL Query Smart Truncation Integration Tests', () => {
 
     const { output } = await runTestScript(testScript);
 
-    const section = output.split('RESULT:')[1].split('TEST_END')[0].trim();
+    const section = output.split('RESULT:')[1]!.split('TEST_END')[0]!.trim();
     
     // Should handle gracefully and return original query
     expect(section).toContain('SELECT * FROM Users WHERE id = @P1');
@@ -338,18 +341,18 @@ describe('SQL Query Smart Truncation Integration Tests', () => {
     const { output } = await runTestScript(testScript);
     
     // INSERT should not be truncated
-    const insertSection = output.split('INSERT_RESULT:')[1].split('UPDATE_RESULT:')[0].trim();
+    const insertSection = output.split('INSERT_RESULT:')[1]!.split('UPDATE_RESULT:')[0]!.trim();
     expect(insertSection).toContain('INSERT INTO Users');
     expect(insertSection).toContain('John Doe');
     expect(insertSection).not.toContain('more');
     
     // UPDATE should be truncated
-    const updateSection = output.split('UPDATE_RESULT:')[1].split('DELETE_RESULT:')[0].trim();
+    const updateSection = output.split('UPDATE_RESULT:')[1]!.split('DELETE_RESULT:')[0]!.trim();
     expect(updateSection).toContain('UPDATE Users');
     expect(updateSection).toContain('more');
     
     // DELETE should be truncated
-    const deleteSection = output.split('DELETE_RESULT:')[1].split('TEST_END')[0].trim();
+    const deleteSection = output.split('DELETE_RESULT:')[1]!.split('TEST_END')[0]!.trim();
     expect(deleteSection).toContain('DELETE FROM TempData');
     expect(deleteSection).toContain('more');
   });

@@ -22,13 +22,11 @@ jest.mock('chalk', () => ({
   blue: (text: string) => text,
 }));
 
-import { createSqlFormatter } from '../src/sqlFormatter';
-import { LoggerConfig } from '../src/types';
+import { createSqlFormatter } from '../../src/sqlFormatter';
+import { LoggerConfig } from '../../src/types';
 
 describe('SQL Formatter Unit Tests', () => {
   const baseConfig: LoggerConfig = {
-    enableSqlFormatting: true,
-    enablePrismaIntegration: true,
     enableColors: false,
     maxStringLength: 100,
     maxArrayLength: 5,
@@ -386,33 +384,10 @@ describe('SQL Formatter Unit Tests', () => {
   });
 
   describe('Configuration Options', () => {
-    it('should respect enableSqlFormatting flag', () => {
-      const formatSql = createSqlFormatter({
-        ...baseConfig,
-        enableSqlFormatting: false,
-      });
-      const query = 'SELECT * FROM Users WHERE id IN (@P1,@P2,@P3)';
-      const result = formatSql(query, '[1,2,3]');
-
-      expect(result).toBe(query); // Should not format
-    });
-
-    it('should respect enablePrismaIntegration flag', () => {
-      const formatSql = createSqlFormatter({
-        ...baseConfig,
-        enablePrismaIntegration: false,
-      });
-      const query = 'SELECT * FROM Users WHERE id IN (@P1,@P2,@P3)';
-      const result = formatSql(query, '[1,2,3]');
-
-      expect(result).toBe(query); // Should not format
-    });
-
     it('should use custom query formatter if provided', () => {
       const customFormatter = jest.fn((query: string, _params: string) => `CUSTOM: ${query}`);
       const formatSql = createSqlFormatter({
         ...baseConfig,
-        enableSqlFormatting: false,
         customQueryFormatter: customFormatter,
       });
       const query = 'SELECT * FROM Users';

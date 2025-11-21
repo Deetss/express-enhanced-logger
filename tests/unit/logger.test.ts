@@ -1,4 +1,5 @@
-import { EnhancedLogger } from '../src/logger';
+import { EnhancedLogger } from '../../src/logger';
+
 import { Request, Response } from 'express';
 
 // Mock winston-daily-rotate-file
@@ -122,7 +123,6 @@ describe('EnhancedLogger Unit Tests', () => {
     it('should log query data when Prisma integration enabled', () => {
       const prismaLogger = new EnhancedLogger({
         enableFileLogging: false,
-        enablePrismaIntegration: true,
       });
 
       expect(() => {
@@ -220,7 +220,6 @@ describe('EnhancedLogger Unit Tests', () => {
     it('should work with custom query formatter', () => {
       const customLogger = new EnhancedLogger({
         enableFileLogging: false,
-        enablePrismaIntegration: true,
         customQueryFormatter: (query, params) => `${query} WITH ${params}`,
       });
 
@@ -303,8 +302,6 @@ describe('EnhancedLogger Unit Tests', () => {
     it('should format SQL queries when enabled', () => {
       const sqlLogger = new EnhancedLogger({
         enableFileLogging: false,
-        enablePrismaIntegration: true,
-        enableSqlFormatting: true,
       });
 
       expect(() => {
@@ -320,8 +317,6 @@ describe('EnhancedLogger Unit Tests', () => {
     it('should not format SQL when disabled', () => {
       const noSqlLogger = new EnhancedLogger({
         enableFileLogging: false,
-        enablePrismaIntegration: true,
-        enableSqlFormatting: false,
       });
 
       expect(() => {
@@ -686,7 +681,6 @@ describe('EnhancedLogger Unit Tests', () => {
 
       const prismaLogger = new EnhancedLogger({
         enableFileLogging: false,
-        enablePrismaIntegration: true,
       });
 
       prismaLogger.setupPrismaLogging(mockPrismaClient);
@@ -998,7 +992,6 @@ describe('EnhancedLogger Unit Tests', () => {
 
       const devLogger = new EnhancedLogger({
         enableFileLogging: false,
-        enablePrismaIntegration: true,
         enableColors: false,
       });
 
@@ -1023,7 +1016,6 @@ describe('EnhancedLogger Unit Tests', () => {
 
       const devLogger = new EnhancedLogger({
         enableFileLogging: false,
-        enablePrismaIntegration: true,
         enableColors: true,
       });
 
@@ -1048,7 +1040,6 @@ describe('EnhancedLogger Unit Tests', () => {
 
       const devLogger = new EnhancedLogger({
         enableFileLogging: false,
-        enablePrismaIntegration: true,
         enableColors: false,
       });
 
@@ -1091,7 +1082,6 @@ describe('EnhancedLogger Unit Tests', () => {
 
       const devLogger = new EnhancedLogger({
         enableFileLogging: false,
-        enablePrismaIntegration: true,
         enableColors: true,
       });
 
@@ -1116,7 +1106,6 @@ describe('EnhancedLogger Unit Tests', () => {
 
       const devLogger = new EnhancedLogger({
         enableFileLogging: false,
-        enablePrismaIntegration: true,
         enableColors: true,
       });
 
@@ -1141,7 +1130,6 @@ describe('EnhancedLogger Unit Tests', () => {
 
       const devLogger = new EnhancedLogger({
         enableFileLogging: false,
-        enablePrismaIntegration: true,
         enableColors: true,
       });
 
@@ -1166,7 +1154,6 @@ describe('EnhancedLogger Unit Tests', () => {
 
       const devLogger = new EnhancedLogger({
         enableFileLogging: false,
-        enablePrismaIntegration: true,
         enableColors: true,
       });
 
@@ -1191,7 +1178,6 @@ describe('EnhancedLogger Unit Tests', () => {
 
       const devLogger = new EnhancedLogger({
         enableFileLogging: false,
-        enablePrismaIntegration: true,
         enableColors: false,
       });
 
@@ -1216,7 +1202,6 @@ describe('EnhancedLogger Unit Tests', () => {
 
       const devLogger = new EnhancedLogger({
         enableFileLogging: false,
-        enablePrismaIntegration: true,
         enableColors: false,
       });
 
@@ -1241,7 +1226,6 @@ describe('EnhancedLogger Unit Tests', () => {
 
       const devLogger = new EnhancedLogger({
         enableFileLogging: false,
-        enablePrismaIntegration: true,
         enableColors: false,
       });
 
@@ -1266,7 +1250,6 @@ describe('EnhancedLogger Unit Tests', () => {
 
       const devLogger = new EnhancedLogger({
         enableFileLogging: false,
-        enablePrismaIntegration: true,
         enableColors: false,
       });
 

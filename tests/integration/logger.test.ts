@@ -1,9 +1,10 @@
-const { spawn } = require('child_process');
-const path = require('path');
+import { spawn } from 'child_process';
+import * as path from 'path';
+import * as fs from 'fs';
 
 describe('Simple Logging Feature Integration Tests', () => {
   const testScript = `
-    import { createLogger } from '../dist/index.js';
+    import { createLogger } from '../../dist/index.js';
     
     // Test 1: Normal logging
     console.log('TEST_START_NORMAL');
@@ -27,7 +28,6 @@ describe('Simple Logging Feature Integration Tests', () => {
 
   test('should support simple logging functionality', (done) => {
     // Create a temporary test file
-    const fs = require('fs');
     const testFile = path.join(__dirname, 'temp-test.mjs');
 
     fs.writeFileSync(testFile, testScript);
@@ -40,15 +40,29 @@ describe('Simple Logging Feature Integration Tests', () => {
     let output = '';
     let errorOutput = '';
 
-    child.stdout.on('data', (data) => {
+    child.stdout.on('data', (data: Buffer) => {
       output += data.toString();
     });
 
-    child.stderr.on('data', (data) => {
+    child.stderr.on('data', (data: Buffer) => {
       errorOutput += data.toString();
     });
 
     let testCompleted = false;
+
+    // Set timeout for the test
+    const timeoutHandle = setTimeout(() => {
+      if (testCompleted) return;
+      testCompleted = true;
+
+      child.kill();
+      try {
+        fs.unlinkSync(testFile);
+      } catch (e) {
+        // Ignore
+      }
+      done(new Error('Test timeout'));
+    }, 5000);
 
     child.on('close', (code) => {
       if (testCompleted) return;
@@ -75,7 +89,7 @@ describe('Simple Logging Feature Integration Tests', () => {
       expect(output).toContain('TESTS_COMPLETE');
 
       // The key test: simple logging should not contain timestamps, levels, or emojis
-      const simpleSection = output.split('TEST_START_SIMPLE')[1].split('TEST_END_SIMPLE')[0];
+      const simpleSection = output.split('TEST_START_SIMPLE')[1]!.split('TEST_END_SIMPLE')[0];
 
       // Simple logging should contain the messages but not the formatting
       expect(simpleSection).toContain('Simple info message');
@@ -85,20 +99,6 @@ describe('Simple Logging Feature Integration Tests', () => {
 
       done();
     });
-
-    // Set timeout for the test
-    const timeoutHandle = setTimeout(() => {
-      if (testCompleted) return;
-      testCompleted = true;
-
-      child.kill();
-      try {
-        fs.unlinkSync(testFile);
-      } catch (e) {
-        // Ignore
-      }
-      done(new Error('Test timeout'));
-    }, 5000);
   });
 
   test('configuration should have simpleLogging option', () => {
