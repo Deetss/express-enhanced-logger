@@ -319,8 +319,8 @@ const logger = createLogger({
   }),
 });
 
-// Use the request logger (it automatically uses the logger created above)
-app.use(requestLogger());
+// Use the request logger
+app.use(logger.requestLogger());
 ```
 
 ### Prisma Integration (SQL Query Logging)
@@ -354,7 +354,7 @@ const prismaClient = new PrismaClient({
 });
 
 // Setup Prisma logging - automatically configures all event handlers
-setupPrismaLogging(prismaClient);
+logger.setupPrismaLogging(prismaClient);
 
 // That's it! All Prisma events are now logged through the enhanced logger
 export default prismaClient;

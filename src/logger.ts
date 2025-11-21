@@ -10,7 +10,6 @@ import chalk from 'chalk';
 import { LoggerConfig, QueryLogData, WinstonLogInfo, PrismaClientLike } from './types.js';
 import {
   DEFAULT_CONFIG,
-  createTruncateForLog,
   getQueryType,
   formatParams,
   getCallerLocation,
@@ -22,7 +21,6 @@ export class EnhancedLogger {
   private config: Required<Omit<LoggerConfig, 'customLogFormat'>> & {
     customLogFormat?: (info: WinstonLogInfo) => string;
   };
-  private truncateForLog: (value: unknown, depth?: number) => unknown;
   private formatSqlQuery: (query: string, params: string) => string;
 
   constructor(config: LoggerConfig = {}) {
@@ -36,7 +34,6 @@ export class EnhancedLogger {
       );
     }
     
-    this.truncateForLog = createTruncateForLog(this.config);
     this.formatSqlQuery = createSqlFormatter(this.config);
 
     // Ensure logs directory exists if file logging is enabled
@@ -124,8 +121,8 @@ export class EnhancedLogger {
 
         // Handle SQL query logs - Winston spreads data directly on info, not in message
         if (level === 'query' && 'query' in info && 'type' in info) {
-          const queryInfo = info as unknown as { type: string; query: string; params?: string; duration: string; timestamp: string; caller?: string };
-          const { query, params = '', duration, type, caller } = queryInfo;
+          const queryInfo = info as unknown as { type: string; query: string; params?: string; duration: string; timestamp: string; caller?: string; isSlow?: boolean };
+          const { query, params = '', duration, type, caller, isSlow = false } = queryInfo;
           
           // Determine query type for color coding
           const queryType = type.toUpperCase();
@@ -133,9 +130,9 @@ export class EnhancedLogger {
           // Rails-style query logging: model name, duration, then SQL query with syntax highlighting
           let formattedQuery = query;
           
-          // Apply syntax highlighting to SQL keywords (Rails-style)
+          // Apply syntax highlighting and parameter replacement
           if (this.config.enableColors) {
-            formattedQuery = this.formatSqlQuery(query, ''); // Don't replace params, just highlight
+            formattedQuery = this.formatSqlQuery(query, params);
           }
           
           // Parse params for display at the end (Rails format)
@@ -209,30 +206,43 @@ export class EnhancedLogger {
             
           let logLine = `  ${modelPrefix}(${duration})  ${formattedQuery}${paramsDisplay}`;
           
-          // Apply color based on query type
+          // Apply color based on query type or slow query status
           if (this.config.enableColors) {
-            switch (queryType) {
-              case 'SELECT':
-                logLine = chalk.cyan(logLine);  // Light blue for all SELECT queries
-                break;
-              case 'UPDATE':
-                logLine = chalk.yellow(logLine);
-                break;
-              case 'DELETE':
-              case 'ROLLBACK':
-                // Both DELETE and ROLLBACK are "negative" operations - use red
-                logLine = chalk.red(logLine);
-                break;
-              case 'INSERT':
-              case 'CREATE':
-                logLine = chalk.green(logLine);
-                break;
-              case 'BEGIN':
-              case 'COMMIT':
-                logLine = chalk.magenta(logLine);
-                break;
-              // Default: keep syntax highlighting from formatSqlQuery
+            // Slow queries get red color regardless of query type
+            if (isSlow) {
+              logLine = chalk.red(logLine);
+            } else {
+              switch (queryType) {
+                case 'SELECT':
+                  logLine = chalk.cyan(logLine);  // Light blue for all SELECT queries
+                  break;
+                case 'UPDATE':
+                  logLine = chalk.yellow(logLine);
+                  break;
+                case 'DELETE':
+                case 'ROLLBACK':
+                  // Both DELETE and ROLLBACK are "negative" operations - use red
+                  logLine = chalk.red(logLine);
+                  break;
+                case 'INSERT':
+                case 'CREATE':
+                  logLine = chalk.green(logLine);
+                  break;
+                case 'BEGIN':
+                case 'COMMIT':
+                  logLine = chalk.magenta(logLine);
+                  break;
+                // Default: keep syntax highlighting from formatSqlQuery
+              }
             }
+          }
+          
+          // Add slow query warning indicator
+          if (isSlow) {
+            const slowWarning = this.config.enableColors 
+              ? chalk.red('  ⚠ SLOW QUERY WARNING')
+              : '  ⚠ SLOW QUERY WARNING';
+            logLine += `\n${slowWarning}`;
           }
           
           // Add caller location if available (Rails-style ↳ indicator)
@@ -395,7 +405,6 @@ export class EnhancedLogger {
   // Update configuration at runtime
   updateConfig(newConfig: Partial<LoggerConfig>) {
     this.config = { ...this.config, ...newConfig };
-    this.truncateForLog = createTruncateForLog(this.config);
     this.formatSqlQuery = createSqlFormatter(this.config);
     // Recreate logger with new config
     this.logger = this.createLogger();
@@ -418,16 +427,16 @@ export class EnhancedLogger {
       const caller = getCallerLocation();
 
       if (duration > this.config.slowQueryThreshold) {
-        // Truncate both query and params for slow queries
-        const truncatedQuery = e.query.substring(0, 200) + (e.query.length > 200 ? '...' : '');
-        const truncatedParams = this.truncateForLog(formattedParams);
-        
-        // Rails-style slow query logging
-        this.warn(`  ${queryType} (${duration}ms)  ${truncatedQuery}  ${truncatedParams}`);
-        if (caller) {
-          this.warn(`  ${caller}`);
-        }
-        this.warn(`  Slow query detected`);
+        // For slow queries, use the same query logging format but mark as slow
+        // This ensures proper formatting, coloring, and truncation
+        this.logger.log('query', '', {
+          type: queryType,
+          query: e.query,
+          params: formattedParams,
+          duration: `${duration}ms`,
+          caller,
+          isSlow: true, // Mark as slow query for special handling
+        });
       } else {
         // Use logger.query() with proper QueryLogData format for Rails-style formatting
         this.query({
