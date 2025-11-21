@@ -1,17 +1,7 @@
-# express-enhanced-logger ✨ Features
-
-- 🚀 **Performance Monitoring** - Track slow requests, memory usage, and response times
-- 🔍 **Smart SQL Formatting** - Intelligent truncation for large IN clauses with parameter substitution
-- 🗄️ **Prisma Integration** - Plug-and-play Prisma logging with one line of code
-- 🎨 **Colored Output** - Beautiful, readable console logs with syntax highlighting
-- 📁 **File Logging** - Automatic log rotation with configurable retention
-- ⚙️ **Highly Configurable** - Extensive customization options for any use case
-- 🔧 **TypeScript First** - Full type definitions and interfaces included
-- ✅ **Well Tested** - 81% test coverage with 134 passing tests
-- 🪶 **Lightweight** - Minimal dependencies (winston, chalk, winston-daily-rotate-file)logger
+# express-enhanced-logger
 
 [![npm version](https://img.shields.io/npm/v/express-enhanced-logger.svg)](https://www.npmjs.com/package/express-enhanced-logger)
-[![Test Coverage](https://img.shields.io/badge/coverage-81%25-brightgreen.svg)](https://github.com/Deetss/express-enhanced-logger)
+[![Test Coverage](https://img.shields.io/badge/coverage-86%25-brightgreen.svg)](https://github.com/Deetss/express-enhanced-logger)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -21,11 +11,12 @@ An enhanced Express.js logger with performance monitoring, SQL query formatting,
 
 - 🚀 **Performance Monitoring** - Track slow requests, memory usage, and response times
 - 🔍 **Smart SQL Formatting** - Intelligent truncation for large IN clauses with parameter substitution
+- 🗄️ **Prisma Integration** - Plug-and-play Prisma logging with one line of code
 - 🎨 **Colored Output** - Beautiful, readable console logs with syntax highlighting
 - 📁 **File Logging** - Automatic log rotation with configurable retention
 - ⚙️ **Highly Configurable** - Extensive customization options for any use case
 - 🔧 **TypeScript First** - Full type definitions and interfaces included
-- � **Well Tested** - 81% test coverage with 134 passing tests
+- ✅ **Well Tested** - 86% test coverage with 201 passing tests
 - 🪶 **Lightweight** - Minimal dependencies (winston, chalk, winston-daily-rotate-file)
 
 ## 📦 Installation
@@ -54,8 +45,6 @@ import { EnhancedLogger } from 'express-enhanced-logger';
 // CommonJS (require)
 const { EnhancedLogger } = require('express-enhanced-logger');
 ```
-
-> 📖 See [DUAL_MODULE_SUPPORT.md](DUAL_MODULE_SUPPORT.md) for detailed information about module compatibility.
 
 ## 🚀 Quick Start
 
@@ -857,7 +846,7 @@ npm run lint
 npm run format
 ```
 
-**Current Test Coverage:** 81% (134 passing tests)
+**Current Test Coverage:** 86% (201 passing tests)
 
 ## 📄 License
 
