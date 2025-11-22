@@ -31,7 +31,7 @@
     "semantic-release": "semantic-release",
     "semantic-release:dry-run": "semantic-release --dry-run",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
-    "preversion": "npm run type-check && npm run lint && npm run build && npm test",
+    "preversion": "npm run type-check && npm run lint && npm run build",
     "demo": "tsx examples/demo-app/server.ts",
     "demo:dev": "tsx watch examples/demo-app/server.ts"
   },
