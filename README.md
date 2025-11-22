@@ -1,7 +1,7 @@
 # express-enhanced-logger
 
 [![npm version](https://img.shields.io/npm/v/express-enhanced-logger.svg)](https://www.npmjs.com/package/express-enhanced-logger)
-[![Test Coverage](https://img.shields.io/badge/coverage-97%25-brightgreen.svg)](https://github.com/Deetss/express-enhanced-logger)
+[![Test Coverage](https://img.shields.io/badge/coverage-89%25-brightgreen.svg)](https://github.com/Deetss/express-enhanced-logger)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -18,7 +18,7 @@ A Rails-inspired Express.js logger with clean output, performance monitoring, SQ
 - 📁 **File Logging** - Automatic log rotation with configurable retention (JSON format)
 - ⚙️ **Highly Configurable** - Extensive customization options for any use case
 - 🔧 **TypeScript First** - Full type definitions and interfaces included
-- ✅ **Well Tested** - 97% test coverage with 214 passing tests
+- ✅ **Well Tested** - 89% test coverage with 229 passing tests
 - 🪶 **Lightweight** - Minimal dependencies (winston, chalk, winston-daily-rotate-file)
 
 ## 📦 Installation
@@ -153,8 +153,6 @@ Queries are logged with proper indentation and timing:
 ```
 
 Format: `  QUERY (duration)  [params]`
-
-See the [RAILS_STYLE.md](RAILS_STYLE.md) guide for more details and comparison with actual Rails output.
 
 ### With Custom Configuration
 
@@ -367,7 +365,7 @@ export default extendedPrisma;
   ↳ src/controllers/users.ts:42
 ```
 
-📖 **[Full Caller Location Documentation](./PRISMA_CALLER_LOCATION.md)** - Learn how it works, advanced usage, and troubleshooting.
+The caller location feature uses AsyncLocalStorage to track where queries originate from, helping you debug and optimize database calls.
 
 #### Plug-and-Play Setup (Recommended)
 
@@ -1087,7 +1085,38 @@ npm run lint
 npm run format
 ```
 
-**Current Test Coverage:** 97% (214 passing tests)
+**Current Test Coverage:** 89% (229 passing tests)
+
+## 🎮 Demo Application
+
+Want to see all features in action? Check out the **comprehensive demo application** at [`examples/demo-app`](./examples/demo-app):
+
+```bash
+# Install dependencies
+npm install
+
+# Generate Prisma client and setup database
+cd examples/demo-app
+npx prisma generate
+npx prisma migrate dev --name init
+
+# Run the demo
+cd ../..
+npm run demo
+```
+
+The demo showcases:
+- ✨ All logging features (info, warn, error, debug)
+- 🚀 Request/response logging with performance tracking
+- 🗄️ Prisma integration with AsyncLocalStorage duration tracking
+- ⏱️ Custom timing with the `measure()` helper
+- 🎯 Controller helpers for Rails-style organization
+- 🔍 Error handling and context logging
+- And much more!
+
+Visit `http://localhost:3000` after starting the demo for a full route listing.
+
+📖 **[Read the demo documentation](./examples/demo-app/README.md)** for detailed setup instructions and usage examples.
 
 ## 📄 License
 
