@@ -1,0 +1,20 @@
+# Demo Application - Generated Files
+
+# Environment variables
+.env
+
+# SQLite database
+dev.db
+dev.db-journal
+*.db
+*.db-journal
+
+# Prisma generated client
+generated/
+
+# TypeScript build output
+dist/
+*.tsbuildinfo
+
+# Node modules (if any)
+node_modules/
