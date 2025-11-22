@@ -1,3 +1,18 @@
+# [2.8.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.7.0...v2.8.0) (2025-11-22)
+
+
+### Bug Fixes
+
+* remove test command from preversion script in package.json ([0597024](https://github.com/Deetss/express-enhanced-logger/commit/0597024f4b2c475df41545f17ec9783c753a74d3))
+* update request logger usage and enhance SQL query logging with slow query indicator ([53344d5](https://github.com/Deetss/express-enhanced-logger/commit/53344d55d61fdbf61deb71768f249dc7b247ce0c))
+* update test coverage percentage in README to reflect current status ([143c9da](https://github.com/Deetss/express-enhanced-logger/commit/143c9da872b2df188aeb9d08f0d2daff9d27f3fb))
+
+
+### Features
+
+* **demo-app:** add demo application showcasing express-enhanced-logger features ([6e9e2d3](https://github.com/Deetss/express-enhanced-logger/commit/6e9e2d3b64faedb53a517a5829e0804e403405b0))
+* implement Prisma caller location tracking with comprehensive logging and context management ([0acf4d5](https://github.com/Deetss/express-enhanced-logger/commit/0acf4d56c2c4b9db28a42c26881b0e637d10cff4))
+
 # Changelog
 
 ## [Unreleased]
