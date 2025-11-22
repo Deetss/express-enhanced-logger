@@ -42,6 +42,7 @@ export const DEFAULT_CONFIG: Required<Omit<LoggerConfig, 'customLogFormat'>> & {
   maxObjectKeys: 20,
   enableColors: process.env.NODE_ENV !== 'production',
   simpleLogging: false,
+  enableTimingBreakdown: true,
   customQueryFormatter: (query: string, _params: string) => query,
   getUserFromRequest: (req: Request) => req.currentUser,
   getRequestId: (req: Request) => req.requestId,
@@ -329,4 +330,77 @@ export function getCallerLocation(): string {
   }
   
   return ''; // No suitable caller found
+}
+
+/**
+ * Capture the caller location for Prisma queries BEFORE execution
+ * This version is designed to be called from Prisma Client Extensions
+ * Returns a clean format like "src/controllers/users.ts:42"
+ */
+export function capturePrismaCallerLocation(): string | null {
+  const oldLimit = Error.stackTraceLimit;
+  Error.stackTraceLimit = 50;
+  
+  const stack = new Error().stack || '';
+  Error.stackTraceLimit = oldLimit;
+  
+  const lines = stack.split('\n');
+  
+  // Start from frame 1 (skip "Error" line)
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+    
+    if (!line) continue;
+    
+    // Skip internal frames - be more aggressive here since we're in an extension
+    if (
+      line.includes('node_modules') ||
+      line.includes('node:') ||           // All node internals
+      line.includes('/dist/') ||          // Compiled library code
+      line.includes('logger.') ||
+      line.includes('utils.') ||
+      line.includes('context.') ||
+      line.includes('sqlFormatter') ||
+      line.includes('EnhancedLogger') ||
+      line.includes('capturePrismaCallerLocation') ||
+      line.includes('winston') ||
+      line.includes('prisma') ||          // All Prisma internals
+      line.includes('@prisma') ||
+      line.includes('PrismaClient') ||
+      line.includes('$extends') ||
+      line.includes('$allOperations') ||
+      line.includes('$allModels') ||
+      line.includes('TracingChannel') ||
+      line.includes('Module._compile') ||
+      line.includes('Module.load') ||
+      line.includes('Function._load') ||
+      line.includes('async_hooks')
+    ) {
+      continue;
+    }
+    
+    // Try to extract file location
+    const match = line.match(/at\s+(?:([^\s]+)\s+\()?([^)]+):(\d+):(\d+)\)?/);
+    
+    if (match) {
+      let filePath = match[2] || '';
+      const lineNum = match[3];
+      
+      if (!filePath) continue;
+      
+      // Clean up file path
+      filePath = filePath.replace('file://', '');
+      
+      // Make it relative to current working directory
+      const cwd = process.cwd();
+      if (filePath.startsWith(cwd)) {
+        filePath = filePath.substring(cwd.length + 1);
+      }
+      
+      // Return simple format: "src/controllers/users.ts:42"
+      return `${filePath}:${lineNum}`;
+    }
+  }
+  
+  return null;
 }

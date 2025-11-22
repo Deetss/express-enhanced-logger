@@ -1,10 +1,18 @@
 import { EnhancedLogger } from './logger.js';
 import { LoggerConfig, QueryLogData, RequestLogData, PrismaClientLike } from './types.js';
 import { DEFAULT_CONFIG } from './utils.js';
+import { measure } from './context.js';
 
 // Export main class and types
 export { EnhancedLogger };
 export type { LoggerConfig, QueryLogData, RequestLogData, PrismaClientLike };
+
+// Export measure helper and context utilities
+export { measure };
+export { getContext, incrementDbDuration, setCallerLocation, getCallerLocation, clearCallerLocation } from './context.js';
+
+// Export Prisma extension for caller location tracking
+export { createPrismaExtension } from './prismaExtension.js';
 
 // Export controller helpers for Rails-style organization
 export { controllerAction, createController, BaseController } from './controllerHelpers.js';

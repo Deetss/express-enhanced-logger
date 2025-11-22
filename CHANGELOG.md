@@ -1,3 +1,23 @@
+# Changelog
+
+## [Unreleased]
+
+### Added
+- **Prisma Caller Location Tracking**: New feature to capture and display the exact file and line number where Prisma queries are called
+  - Added `createPrismaExtension()` function to create Prisma Client Extensions that capture caller locations
+  - Added `capturePrismaCallerLocation()` utility function for intelligent stack trace filtering
+  - Added `setCallerLocation()`, `getCallerLocation()`, and `clearCallerLocation()` context functions
+  - Extended `RequestContext` interface with `callerLocation` field
+  - Integrated caller location display in query logs with Rails-style `↳` indicator
+  - Added comprehensive documentation in `PRISMA_CALLER_LOCATION.md`
+  - Added example usage in `examples/prisma-caller-location.ts`
+  - Added 15 new unit tests for caller location functionality
+- Added `@prisma/client` as optional peer dependency
+
+### Changed
+- Updated `setupPrismaLogging()` to read caller location from AsyncLocalStorage instead of capturing at event time
+- Enhanced query log output to include caller location when available
+
 # [2.7.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.6.1...v2.7.0) (2025-11-21)
 
 

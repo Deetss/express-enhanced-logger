@@ -12,9 +12,16 @@ import {
   DEFAULT_CONFIG,
   getQueryType,
   formatParams,
-  getCallerLocation,
 } from './utils.js';
 import { createSqlFormatter } from './sqlFormatter.js';
+import { 
+  runWithContext, 
+  getContext, 
+  incrementDbDuration,
+  getCallerLocation as getCallerLocationFromContext,
+  clearCallerLocation,
+} from './context.js';
+import { randomUUID } from 'crypto';
 
 export class EnhancedLogger {
   private logger: winston.Logger;
@@ -287,6 +294,17 @@ export class EnhancedLogger {
   requestLogger = (req: Request, res: Response, next: NextFunction) => {
     const start = performance.now();
 
+    // Extract request ID using configured function with null safety
+    const requestId = this.config.getRequestId?.(req) ?? randomUUID();
+
+    // Initialize AsyncLocalStorage context for this request
+    const context = {
+      requestId,
+      startTime: start,
+      dbDuration: 0,
+      customDurations: new Map<string, number>(),
+    };
+
     // Rails-style: Log request start
     const timestamp = new Date().toLocaleString('en-US', {
       year: 'numeric',
@@ -348,9 +366,6 @@ export class EnhancedLogger {
       this.info(`  Parameters: ${inspect(allParams, { depth: 5, compact: true })}`);
     }
 
-    // Extract request ID using configured function with null safety
-    const requestId = this.config.getRequestId ? this.config.getRequestId(req) : undefined;
-
     // Preserve request context with safe property access
     const reqContext = {
       ip: req?.ip || 'unknown',
@@ -376,17 +391,39 @@ export class EnhancedLogger {
 
       const duration = performance.now() - start;
 
-      // Rails-style completion log - simple and clean
+      // Get database duration from context
+      const ctx = getContext();
+      const dbDuration = ctx?.dbDuration ?? 0;
+
+      // Calculate logic duration (Total - DB)
+      const logicDuration = duration - dbDuration;
+
+      // Rails-style completion log with timing breakdown
       const statusText = res.statusMessage || 'OK';
       const durationMs = Math.round(duration);
       
-      // Simple Rails format: Completed 200 OK in 88ms
+      // Build the completion message with Rails-style timing breakdown
+      let completionMessage = `Completed ${res.statusCode} ${statusText} in ${durationMs}ms`;
+      
+      // Add timing breakdown if enabled and there was database activity
+      if (this.config.enableTimingBreakdown && dbDuration > 0) {
+        const logicMs = logicDuration.toFixed(1);
+        const dbMs = dbDuration.toFixed(1);
+        completionMessage += ` (Logic: ${logicMs}ms | DB: ${dbMs}ms)`;
+      }
+      
+      // Add slow request warning if needed
+      if (duration > this.config.slowRequestThreshold) {
+        completionMessage += ' (Slow request)';
+      }
+      
+      // Log at appropriate level based on status code
       if (res.statusCode >= 500) {
-        this.error(`Completed ${res.statusCode} ${statusText} in ${durationMs}ms`);
+        this.error(completionMessage);
       } else if (duration > this.config.slowRequestThreshold) {
-        this.warn(`Completed ${res.statusCode} ${statusText} in ${durationMs}ms (Slow request)`);
+        this.warn(completionMessage);
       } else {
-        this.info(`Completed ${res.statusCode} ${statusText} in ${durationMs}ms`);
+        this.info(completionMessage);
       }
     };
 
@@ -394,7 +431,10 @@ export class EnhancedLogger {
     res.once('finish', finishHandler);
     res.once('error', errorHandler);
 
-    next();
+    // Run the rest of the middleware chain within the AsyncLocalStorage context
+    runWithContext(context, () => {
+      next();
+    });
   };
 
   // Get the underlying winston logger instance
@@ -423,8 +463,14 @@ export class EnhancedLogger {
       const formattedParams = formatParams(e.params);
       const duration = Number(e.duration);
       
-      // Capture caller location
-      const caller = getCallerLocation();
+      // Increment database duration in AsyncLocalStorage context (if active)
+      incrementDbDuration(duration);
+      
+      // Get caller location from AsyncLocalStorage (set by Prisma extension)
+      const caller = getCallerLocationFromContext();
+      
+      // Clear the caller location after reading it to prevent stale data
+      clearCallerLocation();
 
       if (duration > this.config.slowQueryThreshold) {
         // For slow queries, use the same query logging format but mark as slow
@@ -434,7 +480,7 @@ export class EnhancedLogger {
           query: e.query,
           params: formattedParams,
           duration: `${duration}ms`,
-          caller,
+          caller: caller ? `↳ ${caller}` : undefined,
           isSlow: true, // Mark as slow query for special handling
         });
       } else {
@@ -444,7 +490,7 @@ export class EnhancedLogger {
           query: e.query,
           params: formattedParams,
           duration: `${duration}ms`,
-          caller, // Add caller location
+          caller: caller ? `↳ ${caller}` : undefined, // Add caller location from ALS
         });
       }
     });

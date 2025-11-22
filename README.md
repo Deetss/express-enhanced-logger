@@ -9,10 +9,12 @@ A Rails-inspired Express.js logger with clean output, performance monitoring, SQ
 
 ## ✨ Features
 
-- � **Rails-Style Output** - Clean, minimal logging format inspired by Ruby on Rails (no emojis, clear formatting)
-- �🚀 **Performance Monitoring** - Track slow requests, memory usage, and response times
+- 🚂 **Rails-Style Output** - Clean, minimal logging format inspired by Ruby on Rails (no emojis, clear formatting)
+- ⏱️ **Timing Breakdown** - Rails-style timing breakdown showing Logic, DB, and Total durations for each request
+- 🚀 **Performance Monitoring** - Track slow requests, memory usage, and response times
 - 🔍 **Smart SQL Formatting** - Intelligent truncation for large IN clauses with parameter substitution
-- 🗄️ **Prisma Integration** - Plug-and-play Prisma logging with one line of code
+- 🗄️ **Prisma Integration** - Plug-and-play Prisma logging with one line of code + automatic DB time tracking
+- 📏 **measure() Helper** - Wrap any code block to measure and log its execution time
 - 📁 **File Logging** - Automatic log rotation with configurable retention (JSON format)
 - ⚙️ **Highly Configurable** - Extensive customization options for any use case
 - 🔧 **TypeScript First** - Full type definitions and interfaces included
@@ -221,6 +223,8 @@ interface LoggerConfig {
   /** Enable simple logging mode - shows only the message without level or formatting (default: false) */
   simpleLogging?: boolean;
 
+  /** Enable Rails-style timing breakdown in request logs (default: true) */
+  enableTimingBreakdown?: boolean;
 
   /** Custom query formatter function for SQL queries */
   customQueryFormatter?: (query: string, params: string) => string;
@@ -328,6 +332,42 @@ app.use(logger.requestLogger());
 The logger includes smart SQL formatting that efficiently truncates large queries, particularly IN clauses with many parameters.
 
 **⚠️ IMPORTANT:** Prisma integration is **incompatible with `simpleLogging: true`**. Make sure to set `simpleLogging: false` (or omit it, as false is the default) when using `logger.query()`.
+
+#### 🎯 Caller Location Tracking (NEW!)
+
+Track exactly where in your code each Prisma query originates with Rails-style `↳` indicators:
+
+```typescript
+import { PrismaClient } from '@prisma/client';
+import { createPrismaExtension, setupPrismaLogging, createLogger } from 'express-enhanced-logger';
+
+const prisma = new PrismaClient({
+  log: [
+    { emit: 'event', level: 'query' },
+    { emit: 'event', level: 'error' },
+    { emit: 'event', level: 'info' },
+    { emit: 'event', level: 'warn' },
+  ],
+});
+
+// Apply caller location extension
+const extendedPrisma = prisma.$extends(createPrismaExtension());
+
+// Setup logging
+const logger = createLogger({ level: 'query' });
+setupPrismaLogging(prisma);
+
+export default extendedPrisma;
+```
+
+**Output with caller location:**
+
+```text
+  User Load (12.3ms)  SELECT "User"."id", "User"."email" FROM "User" WHERE "User"."id" = $1  ["123"]
+  ↳ src/controllers/users.ts:42
+```
+
+📖 **[Full Caller Location Documentation](./PRISMA_CALLER_LOCATION.md)** - Learn how it works, advanced usage, and troubleshooting.
 
 #### Plug-and-Play Setup (Recommended)
 
@@ -597,6 +637,101 @@ Processing by UsersController#create as JSON
 Completed 201 Created in 25ms
 ```
 
+### Rails-Style Timing Breakdown
+
+When `enableTimingBreakdown: true` (default), the logger automatically tracks and displays timing breakdown:
+
+```
+Started GET "/api/reports" for 127.0.0.1 at 11/21/2025, 10:30:45 CST
+Processing by ReportsController#index as JSON
+  SELECT * FROM reports WHERE user_id = $1 (45ms)  ['123']
+  SELECT * FROM categories (15ms)
+Completed 200 OK in 204ms (Logic: 144.0ms | DB: 60.0ms)
+```
+
+**Breaking down the timing:**
+- **Total**: 204ms (end-to-end request time)
+- **DB**: 60.0ms (cumulative time spent in database queries: 45ms + 15ms)
+- **Logic**: 144.0ms (application logic time: Total - DB = 204ms - 60ms)
+
+This helps identify whether performance issues are due to slow queries or application logic.
+
+### Using the measure() Helper
+
+Track custom operations within your request handlers:
+
+```typescript
+import { measure } from 'express-enhanced-logger';
+
+app.get('/api/report.pdf', async (req, res) => {
+  const logger = getLogger();
+  
+  // Measure PDF generation
+  const pdf = await measure('Rendering PDF', async () => {
+    return await generatePDF(reportData);
+  }, logger);
+  
+  res.send(pdf);
+});
+```
+
+**Output:**
+```
+Started GET "/api/report.pdf" for 127.0.0.1 at 11/21/2025, 10:30:45 CST
+Processing by /api/report.pdf as HTML
+  Rendering PDF (Duration: 145.2ms)
+Completed 200 OK in 152ms
+```
+
+The measure() helper works both inside and outside request contexts, and can track:
+- PDF/report generation
+- External API calls
+- Heavy computations
+- File I/O operations
+- Any async or sync operation
+
+### Complete Request Flow Example
+
+```typescript
+import { createLogger, measure } from 'express-enhanced-logger';
+
+const logger = createLogger({ enableTimingBreakdown: true });
+
+app.get('/api/dashboard', async (req, res) => {
+  // DB queries are automatically tracked via Prisma integration
+  const users = await prisma.user.findMany();  // 25ms
+  const posts = await prisma.post.findMany();  // 30ms
+  
+  // Custom operations can be measured
+  const stats = await measure('Calculating statistics', async () => {
+    return calculateDashboardStats(users, posts);
+  }, logger);
+  
+  // External API call
+  const weather = await measure('Fetching weather data', async () => {
+    return await fetch('https://api.weather.com/...');
+  }, logger);
+  
+  res.json({ users, posts, stats, weather });
+});
+```
+
+**Output:**
+```
+Started GET "/api/dashboard" for 127.0.0.1 at 11/21/2025, 10:30:45 CST
+Processing by /api/dashboard as JSON
+  SELECT * FROM users (25ms)
+  SELECT * FROM posts (30ms)
+  Calculating statistics (Duration: 15.3ms)
+  Fetching weather data (Duration: 234.7ms)
+Completed 200 OK in 320ms (Logic: 265.0ms | DB: 55.0ms)
+```
+
+**Timing breakdown:**
+- Total: 320ms
+- DB: 55.0ms (Prisma queries: 25ms + 30ms)
+- Logic: 265.0ms (includes both measure() operations and other processing)
+
 ### TypeScript Types
 
 ```typescript
@@ -735,6 +870,38 @@ error('Database connection failed', { code: 'ECONNREFUSED' });
 debug('Processing request', { requestId: '123' });
 query({ type: 'query', query: 'SELECT ...', params: '[]', duration: '50' });
 ```
+
+#### `measure<T>(name, fn, logger?): Promise<T>`
+
+Measure the execution time of a synchronous or async function. Returns the result of the function.
+
+```typescript
+import { measure, createLogger } from 'express-enhanced-logger';
+
+const logger = createLogger();
+
+// Measure async operations
+const users = await measure('Fetching users from database', async () => {
+  return await prisma.user.findMany();
+}, logger);
+
+// Measure sync operations
+const result = measure('Heavy calculation', () => {
+  return performComplexCalculation();
+}, logger);
+
+// Without logger (no logging, just execution)
+const data = await measure('Silent operation', async () => {
+  return await fetchData();
+});
+```
+
+**Parameters:**
+- `name` (string) - Name of the operation being measured
+- `fn` (() => T | Promise<T>) - Function to execute and measure
+- `logger` (optional) - Logger instance to log the operation. If omitted, the operation runs silently.
+
+**Returns:** Promise<T> - The result of executing the function
 
 ### EnhancedLogger Class
 

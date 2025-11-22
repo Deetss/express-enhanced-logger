@@ -1,5 +1,20 @@
 import { Request, Response } from 'express';
 
+// Request context for AsyncLocalStorage
+export interface RequestContext {
+  /** Unique request identifier */
+  requestId: string;
+  
+  /** Request start time in milliseconds (from performance.now()) */
+  startTime: number;
+  
+  /** Accumulated database query duration in milliseconds */
+  dbDuration: number;
+  
+  /** Custom operation durations (e.g., from measure() calls) */
+  customDurations: Map<string, number>;
+}
+
 // Winston log info interface
 export interface WinstonLogInfo {
   level: string;
@@ -50,6 +65,9 @@ export interface LoggerConfig {
 
   /** Enable simple logging mode - shows only the message without level or formatting (default: false) */
   simpleLogging?: boolean;
+
+  /** Enable Rails-style timing breakdown in request logs (default: true) */
+  enableTimingBreakdown?: boolean;
 
   /** Custom query formatter function for SQL queries */
   customQueryFormatter?: (query: string, params: string) => string;
