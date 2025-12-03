@@ -403,7 +403,7 @@ export class EnhancedLogger {
       const durationMs = Math.round(duration);
       
       // Build the completion message with Rails-style timing breakdown
-      let completionMessage = `Completed ${res.statusCode} ${statusText} in ${durationMs}ms`;
+      let completionMessage = `Completed ${req?.method || 'UNKNOWN'} "${req?.url || '/'}" for ${ip} ${res.statusCode} ${statusText} in ${durationMs}ms`;
       
       // Add timing breakdown if enabled and there was database activity
       if (this.config.enableTimingBreakdown && dbDuration > 0) {
