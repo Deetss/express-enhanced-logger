@@ -1,3 +1,10 @@
+# [2.9.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.8.0...v2.9.0) (2025-12-03)
+
+
+### Features
+
+* enhance completion message in logger to include HTTP method and URL ([ad327e7](https://github.com/Deetss/express-enhanced-logger/commit/ad327e7b0a930cb9cacb4d3482cad098cd29e837))
+
 # [2.8.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.7.0...v2.8.0) (2025-11-22)
 
 
