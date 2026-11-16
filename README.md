@@ -33,7 +33,7 @@ pnpm add express-enhanced-logger
 
 **Requirements:**
 
-- Node.js >= 18.0.0
+- Node.js >= 20.19.0
 - Express.js >= 4.0.0 or >= 5.0.0 (peer dependency)
 
 **Module System Support:**
