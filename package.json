@@ -3,11 +3,9 @@
   "version": "2.9.0",
   "description": "An enhanced Express.js logger with performance monitoring, SQL query formatting, and customizable features",
   "main": "dist-cjs/index.js",
-  "types": "dist/index.d.ts",
+  "types": "dist-cjs/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist-cjs/index.js",
-      "require": "./dist-cjs/index.js",
       "types": "./dist-cjs/index.d.ts",
       "default": "./dist-cjs/index.js"
     }
@@ -91,7 +89,7 @@
     "typescript": "^5.5.4"
   },
   "files": [
-    "dist",
+    "dist-cjs",
     "README.md",
     "LICENSE"
   ],
