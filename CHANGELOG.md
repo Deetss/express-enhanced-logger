@@ -1,3 +1,11 @@
+## [2.9.1](https://github.com/Deetss/express-enhanced-logger/compare/v2.9.0...v2.9.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* publish the CommonJS build in dist-cjs ([#3](https://github.com/Deetss/express-enhanced-logger/issues/3)) ([c65b961](https://github.com/Deetss/express-enhanced-logger/commit/c65b961d02ce26c98c8167ef3b61b62ed688d442))
+* update package structure to use dist-cjs for CommonJS compatibility ([72538e0](https://github.com/Deetss/express-enhanced-logger/commit/72538e0608186e0eb71ec043a7673576a52b1557))
+
 # [2.9.0](https://github.com/Deetss/express-enhanced-logger/compare/v2.8.0...v2.9.0) (2025-12-03)
 
 
